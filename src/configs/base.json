@@ -1,0 +1,6 @@
+{
+    "name": "base_exp",
+    "trainer": {
+        "save_dir": "events_logs"
+   }
+}

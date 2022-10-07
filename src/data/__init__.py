@@ -1,0 +1,1 @@
+from .mnist import ColoredMNIST, RotatedMNIST
