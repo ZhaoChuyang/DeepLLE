@@ -1,6 +1,12 @@
 {
     "name": "base_exp",
+    "resume_checkpoint": "",
     "trainer": {
-        "save_dir": "events_logs"
+        "epochs": 1,
+        "early_stop": 10,
+        "saved_period": 100,
+        "save_dir": "events_logs",
+        "verbosity": 2,
+        "monitor": "min val_loss"
    }
 }
