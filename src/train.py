@@ -5,7 +5,6 @@ from utils import init_config, setup_logger, mkdirs
 
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default="", type=str, help="path to the config file")

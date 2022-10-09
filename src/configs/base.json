@@ -1,11 +1,26 @@
 {
     "name": "base_exp",
     "resume_checkpoint": "",
+    "data_factory": {
+        "train": {
+            "type": "TrainDataFactory",
+            "args": {
+                "a1": "a1"
+            }
+        },
+        "valid": {
+            "type": "TrainDataFactory",
+            "args": {
+                "a1": "a1"
+            }
+        }
+    },
     "trainer": {
         "epochs": 1,
+        "iters_per_epoch": -1,
         "early_stop": 10,
         "saved_period": 100,
-        "save_dir": "events_logs",
+        "save_dir": "event_logs",
         "verbosity": 2,
         "monitor": "min val_loss"
    }

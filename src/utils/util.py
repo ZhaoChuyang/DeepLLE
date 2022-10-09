@@ -3,7 +3,6 @@ import json
 import pathlib
 
 
-
 def read_json(path):
     with open(path, "r") as fb:
         data = json.load(fb)
