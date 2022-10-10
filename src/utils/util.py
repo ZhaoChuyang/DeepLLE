@@ -1,6 +1,13 @@
+# Created on Sat Oct 08 2022 by Chuyang Zhao
 import os
 import json
+import time
 import pathlib
+
+
+# If you don't set the seed manually, will use current timestamp
+# as the seed for random number generator.
+_seed = int(time.time())
 
 
 def read_json(path):
@@ -20,3 +27,13 @@ def mkdirs(dirpath):
     Make directory in dirpath, if its parent directories do not exist, create its parent directories too.
     """
     pathlib.Path(dirpath).mkdir(parents=True, exist_ok=True)
+
+
+def set_seed(seed: int):
+    global _seed
+    _seed = int(seed)
+
+
+def get_seed():
+    global _seed
+    return _seed

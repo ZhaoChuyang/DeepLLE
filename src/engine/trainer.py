@@ -1,17 +1,17 @@
-# modified from https://github.com/victoresque/pytorch-template/blob/master/base/base_trainer.py
 # Created on Sat Oct 08 2022 by Chuyang Zhao
+import os
+import time
 import logging
 import torch
-from abc import abstractmethod
 from numpy import inf
 from ..utils import TensorboardWriter, MetricTracker, check_path_exists
 
 
 class BaseTrainer:
     """
-    Base class for all trainers
+    Base class for all trainers.
     """
-    def __init__(self, model, train_loader, optimizer, config: dict) -> None:
+    def __init__(self, model, optimizer, config, train_loader, valid_loader = None) -> None:
         self.config = config
         self.logger = logging.getLogger('trainer', config['trainer']['verbosity'])
 
@@ -19,10 +19,16 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.train_loader = train_loader
         self._train_loader_iter = iter(self.train_loader)
+
+        self.valid_loader = valid_loader
+        self.do_validation = False if self.valid_loader is None else True
+        if self.do_validation:
+            self._valid_loader_iter = iter(self.valid_loader)
     
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
         self.saved_period = cfg_trainer['saved_period']
+        self.eval_period = cfg_trainer['eval_period']
         self.monitor = cfg_trainer.get('moniter', 'off')
 
         if cfg_trainer["iters_per_epoch"] == -1:
@@ -62,8 +68,8 @@ class BaseTrainer:
         # set tensorboard
         self.tb_writer = TensorboardWriter(cfg_trainer["log_dir"], self.logger, cfg_trainer["tensorboard"])
 
-        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
-        self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.train_metrics = MetricTracker('total_loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.valid_metrics = MetricTracker('total_loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
         if self.config.get("resume_checkpoint", None):
             self._resume_checkpoint(self.config.get("resume_checkpoint"))
@@ -74,50 +80,24 @@ class BaseTrainer:
 
     def before_epoch(self):
         """
-        Execute this step when current iteration is the first iteration of the epoch,
-        i.e. (self.iter - 1) % self.iters_per_epoch == 0, otherwise skip this step.
+        Execute this procedure when current iteration is the first iteration of the epoch,
+        i.e. (self.iter - 1) % self.iters_per_epoch == 0, otherwise skip this procedure.
         
         """
         if (self.iter - 1) % self.iters_per_epoch == 0:
             self.train_metrics.reset()
-
+            self.valid_metrics.reset()
 
     def after_epoch(self):
         """
-        Execute this step when current iteration is the last iteration of the epoch,
-        i.e. (self.iter - self.iters_per_epoch) % self.iters_per_epoch == 0, otherwise skip this step.
+        Execute this procedure when current iteration is the last iteration of the epoch,
+        i.e. (self.iter - self.iters_per_epoch) % self.iters_per_epoch == 0, otherwise skip this procedure.
         """
         if (self.iter - self.iters_per_epoch) % self.iters_per_epoch == 0:
-            result = self.train_metrics.result()
-            valid_result = self.valid_metrics.result()
-            # prepend tag 'valid' to the valid result
-            valid_result = {'valid_{}'.format(key): val for key, val in valid_result.items()}
-            # merge results from train and valid
-            result.update(valid_result)
-
-            log = {'epoch': self.epoch}
-            log.update(result)
-
-            # evaluate model performance according to configured metric, save best checkpoint as model_best
-            best = False
-            if self.mnt_mode != 'off':
-
-                if self.mnt_metric not in log["outputs"]:
-                    self.logger.error("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, log["outputs"].keys()))
-                    raise RuntimeError("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, log["outputs"].keys()))
-                
-                improved = (self.mnt_mode == 'min' and log[self.mnt_metric] <= self.mnt_best) or \
-                    (self.mnt_mode == 'max' and log[self.mnt_metric] >= self.mnt_best)
+            pass
     
-                if improved:
-                    self.mnt_best = log[self.mnt_metric]
-                    best = True
-
-            if self.epoch % self.save_period == 0:
-                self._save_checkpoint(save_best=best)
-        
     def before_step(self):
-        pass
+        self.model.train()
 
     def after_step(self):
         pass
@@ -127,8 +107,7 @@ class BaseTrainer:
 
     def train(self):
         """
-        Full train logic for calling in the main function.
-
+        Full train logic for calling in the entrance function.
         """
 
         for self.iter in range(self.start_iter, self.max_iter):
@@ -140,7 +119,7 @@ class BaseTrainer:
 
         self.iter += 1
 
-    def _save_checkpoint(self, save_best=False) -> None:
+    def _save_checkpoint(self, filename: str, save_best: bool = False) -> None:
         """
         Saving checkpoint, checkpoint contains:
         - iter: current iteration step
@@ -150,6 +129,7 @@ class BaseTrainer:
         - config: config dict
         
         Args:
+            filename (str): 
             save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'
         """
         state = {
@@ -159,14 +139,15 @@ class BaseTrainer:
             'monitor_best': self.mnt_best,
             'config': self.config
         }
-
-        filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(self.epoch))
-        torch.save(state, filename)
-        self.logger.info("Saving checkpoint: {} ...".format(filename))
+        
+        path = os.path.join(self.checkpoint_dir, filename)
+        torch.save(state, path)
+        self.logger.info("Saving checkpoint to: {} ...".format(path))
+        
         if save_best:
-            best_path = str(self.checkpoint_dir / 'model_best.pth')
+            best_path = os.path.join(self.checkpoint_dir, 'model_best.pth')
             torch.save(state, best_path)
-            self.logger.info("Saving current best: model_best.pth ...")
+            self.logger.info("Saving current best to: {} ...".format(best_path))
 
 
     def _resume_checkpoint(self, resume_path: str) -> None:
@@ -207,32 +188,152 @@ class Trainer(BaseTrainer):
     Basic Trainer that suitable for most of the training tasks.
     """
     def __init__(self, model, metric_ftns, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
-        super().__init__(model, train_loader, optimizer, config)
+        super().__init__(model, optimizer, config, train_loader, valid_loader)
 
-        self.valid_loader = valid_loader
-        self._valid_loader_iter = iter(self.valid_loader)
-        self.do_validation = False if self.valid_loader is None else True
+        self.device = device
+        self.metric_ftns = metric_ftns
         self.lr_scheduler = lr_scheduler
 
-    def next_train_iter(self):
-        try:
-            data = next(self._train_loader_iter)
-        except StopIteration:
-            self._train_loader_iter = iter(self.train_loader)
-            data = next(self._train_loader_iter)
-        return data
-
-    def next_valid_iter(self):
-        try:
-            data = next(self._valid_loader_iter)
-        except StopIteration:
-            self._valid_loader_iter = iter(self.valid_loader)
-            data = next(self._valid_loader_iter)
+    def put_on_device(self, data):
+        for key, val in data:
+            if isinstance(val, torch.Tensor):
+                data[key] = val.to(self.device)
         return data
 
     def run_step(self):
-        self.model.train()
+        assert self.model.training, "[Trainer] model was changed to eval mode!"
+
+        data = next(self._train_loader_iter)
+        data = self.put_on_device(data)
+
+        """
+        If you want to do something with the losses, you can wrap the model.
+        If you want to compute some metrics based on the outputs, you can 
+        wrap the model too.
+        """
+        loss_dict, output_dict = self.model(data)
+
+        if isinstance(loss_dict, torch.Tensor):
+            losses = loss_dict
+            loss_dict = {"total_loss": losses}
+        else:
+            losses = sum(loss_dict.values())
+        
+        if isinstance(output_dict, torch.Tensor):
+            outputs = output_dict
+            output_dict = {"outputs": outputs}
+
+        self.optimizer.zero_grad()
+        losses.backward()
+        self.optimizer.step()
+
+        self.write_metrics('train', output_dict, loss_dict)
+
+    def write_metrics(self, mode, output_dict, loss_dict = dict()):
+        assert mode in ['train', 'valid'], "Mode can only be in ['train', 'valid']. Got {}.".format(mode)
+        
+        if mode == 'train':
+            metirc = self.train_metrics
+        else:
+            metric = self.valid_metrics
+            
+        self.tb_writer.set_step(self.iter, mode)
+
+        for key, loss in loss_dict:
+            metric.update(key, loss.detach().cpu().item())
+        
+        for key, output in output_dict:
+            metric.update(key, output)
+
+    def after_step(self):
+        super().after_step()
+
+        # update the learning rate on iteration boundaries.
+        if self.lr_scheduler:
+            self.lr_scheduler.step()
+
+        # print training information to the screen periodically.
+        if self.iter % self.log_perid == 0:
+            self.logger.debug('Epoch: {} \t Train Iteration: [{}/{} ({:.0f}%)] \t Loss: {:.6f}'.format(
+                    self.iter,
+                    self.max_iter,
+                    self.iter / self.max_iter,
+                    self.epoch,
+                    self.train_metrics.avg('total_loss')))
+
+        # evaluate on the validation dataset periodically if validation dataset is provided.
+        if self.do_validation and self.iter % self.eval_period == 0:
+            self.do_eval()
+
+        # save the checkpoint periodically.
+        if self.iter % self.saved_period == 0:
+            self.save_checkpoint()
         
 
+    def save_checkpoint(self):
+        result = self.train_metrics.result()
+        if self.do_validation:
+            valid_result = self.valid_metrics.result()
+            valid_result = {'valid_{}'.format(key): val for key, val in valid_result.items()}
+            # merge valid and train results
+            result.update(valid_result)
 
+        # print results to the screen and save the results into log file
+        result['iter'] = self.iter
+        result['epoch'] = self.epoch
+        for key, value in result.items():
+            self.logger.info('{:15s}: {}'.format(str(key), value))
 
+        # evaluate model performance according to configured metric, save best checkpoint as model_best
+        best = False
+        if self.mnt_mode != 'off':
+
+            if self.mnt_metric not in result:
+                self.logger.error("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
+                raise RuntimeError("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
+            
+            improved = (self.mnt_mode == 'min' and result[self.mnt_metric] <= self.mnt_best) or \
+                (self.mnt_mode == 'max' and result[self.mnt_metric] >= self.mnt_best)
+
+            if improved:
+                self.mnt_best = result[self.mnt_metric]
+                best = True
+
+        filename = "model_{}_{}.pt".format(self.iter, result[self.mnt_metric])
+        self._save_checkpoint(filename, save_best=best)
+
+    @torch.no_grad()
+    def do_eval(self):
+        self.model.eval()
+
+        # inference dataset must have a fixed length
+        total = len(self.valid_loader)
+        start_time = time.perf_counter()
+
+        for idx, data in enumerate(self._valid_loader_iter):
+            data = self.put_on_device(data)
+
+            loss_dict, output_dict = self.model(data)
+
+            self.tb_writer.set_step((self.iter // self.eval_period - 1) * total + idx, 'valid')
+
+            if isinstance(loss_dict, torch.Tensor):
+                losses = loss_dict
+                loss_dict = {"total_loss": losses}
+            else:
+                losses = sum(loss_dict.values())
+            
+            if isinstance(output_dict, torch.Tensor):
+                outputs = output_dict
+                output_dict = {"outputs": outputs}
+
+            self.write_metrics('valid', output_dict, loss_dict)
+        
+        total_time = time.perf_counter() - start_time
+
+        self.logger.info(
+            "Evaluation completed. Total inference time: {}({:.6f} s/iter)".format(
+                total_time, total_time / total
+                )
+            )
+        

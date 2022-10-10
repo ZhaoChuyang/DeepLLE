@@ -1,4 +1,4 @@
-# modified from https://github.com/victoresque/pytorch-template/blob/master/logger/visualization.py
+# Created on Sat Oct 08 2022 by Chuyang Zhao
 import importlib
 from datetime import datetime
 import pandas as pd
