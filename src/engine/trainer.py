@@ -2,6 +2,7 @@
 import os
 import time
 import logging
+from typing import Dict
 import torch
 from numpy import inf
 from ..utils import TensorboardWriter, MetricTracker, check_path_exists
@@ -198,9 +199,8 @@ class Trainer(BaseTrainer):
         data = next(self._train_loader_iter)
 
         """
-        If you want to do something with the losses, you can wrap the model.
-        If you want to compute some metrics based on the outputs, you can 
-        wrap the model too.
+        If you want to do something with the losses or compute metrics based on
+        model's outputs, you can wrap the model.
         """
         loss_dict, output_dict = self.model(data)
 
@@ -218,10 +218,10 @@ class Trainer(BaseTrainer):
         losses.backward()
         self.optimizer.step()
 
-        self.write_metrics('train', output_dict, loss_dict)
+        self.write_metrics('train', loss_dict, output_dict)
 
-    def write_metrics(self, mode, output_dict, loss_dict = dict()):
-        assert mode in ['train', 'valid'], "Mode can only be in ['train', 'valid']. Got {}.".format(mode)
+    def write_metrics(self, mode, loss_dict: Dict, output_dict: Dict):
+        assert mode in ['train', 'valid'], "Mode can only be 'train' or 'valid'. Got {}.".format(mode)
         
         if mode == 'train':
             metirc = self.train_metrics
