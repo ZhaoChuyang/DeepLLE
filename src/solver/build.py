@@ -1,3 +1,4 @@
+# Created on Mon Oct 10 2022 by Chuyang Zhao
 import torch
 from .lr_scheduler import WarmupMultiStepLR, WarmupCosineLR
 
@@ -33,7 +34,7 @@ def get_default_optimizer_params(
             if not value.requires_grad:
                 continue
             
-            # Avoid duplicating parameters, which happens when some modules share the same sub-module.
+            # Avoid duplicating parameters, which happens when some modules share the same sub module.
             if value in memo:
                 continue
             memo.add(value)
@@ -49,11 +50,11 @@ def get_default_optimizer_params(
     # which is introduced in: https://github.com/facebookresearch/detectron2/blob/main/detectron2/solver/build.py
     return params
 
-    
 
-
-def build_optimizer(model, name, **kwargs):
-    pass
+def build_optimizer(model, name, weight_decay_norm = None, **kwargs):
+    params = get_default_optimizer_params(model, weight_decay_norm)
+    optimizer = getattr(torch.optim, name)(**kwargs)
+    return optimizer
 
 
 def build_lr_scheduler(optimizer: torch.optim.Optimizer, name: str, **kwargs):
