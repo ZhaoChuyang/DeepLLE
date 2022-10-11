@@ -24,26 +24,23 @@ class BaseTrainer:
         self.do_validation = False if self.valid_loader is None else True
         if self.do_validation:
             self._valid_loader_iter = iter(self.valid_loader)
-    
+
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
         self.saved_period = cfg_trainer['saved_period']
         self.eval_period = cfg_trainer['eval_period']
         self.monitor = cfg_trainer.get('moniter', 'off')
 
-        if cfg_trainer["iters_per_epoch"] == -1:
+        self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
+
+        # Try infer the number of iterations per epoch from the dataset.
+        # If the length of the dataset cannot be determined, which may happen
+        # when the dataset is iterable-style, raise an error.
+        if self.iters_per_epoch == -1:
             try:
                 self.iters_per_epoch = len(self.train_loader)
             except:
-                self.logger.error("Error: The length of the data loader: {} can not be automatically determined. Please set iters_per_epoch manually in the config.".format(config["data_factory"]["train"]))
                 raise RuntimeError("Error: The length of the data loader: {} can not be automatically determined. Please set iters_per_epoch manually in the config.".format(config["data_factory"]["train"]))
-        else:
-            try:
-                if cfg_trainer["iters_per_epoch"] > len(self.train_loader):
-                    self.logger.warning("Warning: iters_per_epoch: {} is larger than the length of the data loader: {}, automatically set it to the length of the data loader".format(cfg_trainer["iters_per_epoch"], len(self.train_loader)))
-                    self.iters_per_epoch = len(self.train_loader)
-            except:
-                pass
         
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
@@ -54,10 +51,6 @@ class BaseTrainer:
             assert self.mnt_mode in ['min', 'max']
 
             self.mnt_best = inf if self.mnt_mode == 'min' else -inf
-            self.early_stop = cfg_trainer.get('early_stop', inf)
-
-            if self.early_stop <= 0:
-                self.early_stop = inf
         
         self.iter = 1
         self.start_iter = 1
@@ -82,11 +75,9 @@ class BaseTrainer:
         """
         Execute this procedure when current iteration is the first iteration of the epoch,
         i.e. (self.iter - 1) % self.iters_per_epoch == 0, otherwise skip this procedure.
-        
         """
         if (self.iter - 1) % self.iters_per_epoch == 0:
-            self.train_metrics.reset()
-            self.valid_metrics.reset()
+            pass
 
     def after_epoch(self):
         """
@@ -108,6 +99,12 @@ class BaseTrainer:
     def train(self):
         """
         Full train logic for calling in the entrance function.
+
+        By dafault our training process is iteration-based,
+        currently `self.before_epoch()` and `self.after_epoch()`
+        do nothing, but provide an interface for the compatibility
+        of epoch-based training. If you want to train the model
+        in epoch-based way, you can override these two methods.
         """
 
         for self.iter in range(self.start_iter, self.max_iter):
@@ -117,6 +114,7 @@ class BaseTrainer:
             self.after_step()
             self.after_epoch()
 
+        # increment the iter counter to mark the comleting of training
         self.iter += 1
 
     def _save_checkpoint(self, filename: str, save_best: bool = False) -> None:
@@ -129,8 +127,8 @@ class BaseTrainer:
         - config: config dict
         
         Args:
-            filename (str): 
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'
+            filename (str): filename of the saved checkpoint.
+            save_best (bool): if True, rename the saved checkpoint to 'model_best.pt'
         """
         state = {
             'iter': self.iter,
@@ -145,7 +143,7 @@ class BaseTrainer:
         self.logger.info("Saving checkpoint to: {} ...".format(path))
         
         if save_best:
-            best_path = os.path.join(self.checkpoint_dir, 'model_best.pth')
+            best_path = os.path.join(self.checkpoint_dir, 'model_best.pt')
             torch.save(state, best_path)
             self.logger.info("Saving current best to: {} ...".format(best_path))
 
@@ -185,7 +183,7 @@ class BaseTrainer:
 
 class Trainer(BaseTrainer):
     """
-    Basic Trainer that suitable for most of the training tasks.
+    Basic Trainer that is suitable for most of the training tasks.
     """
     def __init__(self, model, metric_ftns, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
         super().__init__(model, optimizer, config, train_loader, valid_loader)
@@ -194,17 +192,10 @@ class Trainer(BaseTrainer):
         self.metric_ftns = metric_ftns
         self.lr_scheduler = lr_scheduler
 
-    def put_on_device(self, data):
-        for key, val in data:
-            if isinstance(val, torch.Tensor):
-                data[key] = val.to(self.device)
-        return data
-
     def run_step(self):
         assert self.model.training, "[Trainer] model was changed to eval mode!"
 
         data = next(self._train_loader_iter)
-        data = self.put_on_device(data)
 
         """
         If you want to do something with the losses, you can wrap the model.
@@ -336,4 +327,3 @@ class Trainer(BaseTrainer):
                 total_time, total_time / total
                 )
             )
-        

@@ -28,7 +28,7 @@ def build_batch_data_loader(
         batch_size=batch_size,
         drop_last=True,
         num_workers=num_workers,
-        collate_fn=collate_fn
+        collate_fn=trivial_batch_collator if collate_fn is None else collate_fn
     )
 
 
@@ -61,6 +61,7 @@ def build_train_loader(
 
 def build_test_loader(
     dataset,
+    *,
     sampler=None,
     batch_size: int = 1,
     num_workers: int = 0,
@@ -81,5 +82,13 @@ def build_test_loader(
         sampler=sampler,
         drop_last=False,
         num_workers=num_workers,
-        collate_fn=collate_fn
+        collate_fn=trivial_batch_collator if collate_fn is None else collate_fn
     )
+
+
+def trivial_batch_collator(batch):
+    """
+    A batch collator that do not do collation on the
+    batched data but directly returns it as a list.
+    """
+    return batch

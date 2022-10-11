@@ -47,7 +47,7 @@ def get_default_optimizer_params(
             params.append({"params": [value], **hyperparams})
     
     # TODO: speed up multi-tensor optimizer by merging duplicated groups,
-    # which is introduced in: https://github.com/facebookresearch/detectron2/blob/main/detectron2/solver/build.py
+    # as introduced in: https://github.com/facebookresearch/detectron2/blob/main/detectron2/solver/build.py
     return params
 
 

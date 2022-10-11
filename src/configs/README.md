@@ -1,42 +1,66 @@
-Details of the items used in the configuration.
+Details of the configuration options.
 
 
-
-"""json
+```python
 {
     "trainer":{
-        # save the checkpoint every 100 iterations
+        """
+        Period to save the checkpoint.
+
+        Note: our training is iteration-based, so the following setting
+        will save our checkpoint every 100 iterations.
+        """
         "saved_period": 100,
 
-        # configuration to monitor the performance of the model and save best
-        # monitor should be chosen from ["off", "<mnt_mode> <mnt_metric>"],
-        # <mnt_mode> can only be "min" or "max", 
-        # <mnt_metric> is the metric key in the outputs dict returned by the model, loss by default.
-        # if you want to use the metric computed on valid/test datasets, you should prepend the mode tag to it,
-        # such as valid_loss, test_loss, etc.
-        # if you set monitor to off or you don't specify this item,
-        # the trainer will automatically save the checkpoint of the last epoch as the best model.
+
+        """
+        Configuration to monitor the performance of the model and save the best checkpoint as "model_best.pt".
+
+        "moniter" should be a string, available choices include "off" and "<mnt_mode> <mnt_metric>".
+            * "off" means turn the monitor off, which will result the trainer not to save the best
+              model as "model_best.pt".
+            * "<mnt_mode> <mnt_metric>" is the indicator telling the moniter to moniter the changes
+              of recorded metric: <mnt_metric>, and save the best model based on this metric.
+              <mnt_mode> is the way to measure <mnt_metric>, it has two valid options "min" and "max".
+              <mnt_metric> is the metric type which will be used to measure the performance of the model.
+              
+              e.g. "min loss" means measuring the performace of the model based on the its current loss,
+              and the a more minimum loss means a better model.
+
+              Note: the corresponding metric on valid dataset is prepended with "valid_", for example the
+              loss computed on valid dataset is called "valid_loss". 
+        """
         "monitor": "min loss",
 
-        "early_stop": 10,
-
-        # path to the saved checkpoint to resume for training/testing.
-        # if you do not provide this term or set it to "", training will start from scratch.
+        """
+        Path to the saved checkpoint to load for resuming training. Delete this term
+        or set it to "" to train from scratch.
+        """
         "resume_checkpoint": "/path/to/saved_checkpoint.pt",
 
-        # train 10 epochs
-        # There is no true epoch, number of epochs will be converted to number of iterations by:
-        # num_iters = epochs * iters_per_epoch
+        """
+        Number of training epochs
+
+        There is no epoch concept in our trainer, the number of epochs will be converted to
+        the number of total traing iterations by:
+            total_iters = epochs * iters_per_epoch
+
+        Note: Iteration-based training is the suggested way, in which
+        you can set "epochs" to 1, and set the iters_per_epoch as the
+        total training iterations you need.
+        """
         "epochs": 10,
 
-        # you can set the number of iterations each epoch here
-        # if you set it to -1, the number will be calculated as the length of the train dataloader.
-        # if the number you set is larger than the length of the train dataloader, 
-        # only len(train_loader) times iterations will be excuted.
-        iters_per_epoch: 1000,
+        """
+        Training iterations per epoch.
 
-
+        You can set it to -1, if you want to train on the whole training dataset once per epoch,
+        in which way the trainer will compute the iters_per_epoch based on the length of the dataset.
+        But we don't recommend to do in this way, because the frame work is designed to train based
+        on iteration, you should set it to the maximum training iterations you need.
+        """
+        "iters_per_epoch": 1000,
 
     }
 }
-"""
+```

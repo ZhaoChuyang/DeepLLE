@@ -8,7 +8,6 @@
 
 # FIXME: ideally this would be achieved with a CombinedLRScheduler, separating
 # MultiStepLR with WarmupLR but the current LRScheduler design doesn't allow it.
-import logging
 import math
 from bisect import bisect_right
 from typing import List

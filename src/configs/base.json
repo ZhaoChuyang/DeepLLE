@@ -3,13 +3,13 @@
     "resume_checkpoint": "",
     "data_factory": {
         "train": {
-            "type": "TrainDataFactory",
+            "name": "TrainDataFactory",
             "args": {
                 "a1": "a1"
             }
         },
         "valid": {
-            "type": "TrainDataFactory",
+            "name": "TrainDataFactory",
             "args": {
                 "a1": "a1"
             }
@@ -22,6 +22,6 @@
         "saved_period": 100,
         "save_dir": "event_logs",
         "verbosity": 2,
-        "monitor": "min val_loss"
+        "monitor": "min valid_loss"
    }
 }
