@@ -34,7 +34,13 @@
                 "root": "/data/chuyang/datasets/lol_dataset"
             },
             "batch_size": 16,
-            "num_workers": 0
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
         }
     },
 

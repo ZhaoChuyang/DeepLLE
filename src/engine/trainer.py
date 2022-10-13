@@ -221,9 +221,9 @@ class Trainer(BaseTrainer):
         losses.backward()
         self.optimizer.step()
 
-        self.write_metrics('train', loss_dict, output_dict)
+        self.write_metrics('train', self.iter, loss_dict, output_dict)
 
-    def write_metrics(self, mode, loss_dict: Dict, output_dict: Dict):
+    def write_metrics(self, mode, step, loss_dict: Dict, output_dict: Dict):
         assert mode in ['train', 'valid'], "Mode can only be 'train' or 'valid'. Got {}.".format(mode)
         
         if mode == 'train':
@@ -231,7 +231,7 @@ class Trainer(BaseTrainer):
         else:
             metric = self.valid_metrics
             
-        self.tb_writer.set_step(self.iter, mode)
+        self.tb_writer.set_step(step, mode)
 
         for key, loss in loss_dict.items():
             metric.update(key, loss.detach().cpu().item())
@@ -308,23 +308,21 @@ class Trainer(BaseTrainer):
         
         start_time = time.perf_counter()
 
-        for idx, data in enumerate(self._valid_loader_iter):
+        for idx, data in enumerate(self.valid_loader):
             loss_dict, output_dict = self.model(data)
-
-            self.tb_writer.set_step((self.iter // self.eval_period - 1) * total + idx, 'valid')
 
             if isinstance(loss_dict, torch.Tensor):
                 losses = loss_dict
                 loss_dict = {"total_loss": losses}
             else:
                 losses = sum(loss_dict.values())
-                loss_dict = {"total_loss": losses}
+                loss_dict.update({"total_loss": losses})
             
             if isinstance(output_dict, torch.Tensor):
                 outputs = output_dict
                 output_dict = {"outputs": outputs}
 
-            self.write_metrics('valid', output_dict, loss_dict)
+            self.write_metrics('valid', (self.iter // self.eval_period - 1) * total + idx, output_dict, loss_dict)
 
             # early stop
             if idx == self.max_eval_iters:
