@@ -53,7 +53,7 @@ def get_default_optimizer_params(
 
 def build_optimizer(model, name, weight_decay_norm = None, **kwargs):
     params = get_default_optimizer_params(model, weight_decay_norm)
-    optimizer = getattr(torch.optim, name)(**kwargs)
+    optimizer = getattr(torch.optim, name)(params=params, **kwargs)
     return optimizer
 
 

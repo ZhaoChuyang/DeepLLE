@@ -17,5 +17,13 @@ def build_model(cfg_model):
     should be defined in `cfg_model`. 
     """
     name = cfg_model["name"]
-    model = MODEL_REGISTRY.get(name)(**cfg_model)
+    args = cfg_model["args"]
+    
+    assert "testing" in args, (
+        f"'testing' needs to be explicitly specified in config, " \
+        "but was not found in model's args: {args}" \
+        "set it to False if you are training model, True if you are evaluating or tracing model"
+    )
+    
+    model = MODEL_REGISTRY.get(name)(**args)
     return model

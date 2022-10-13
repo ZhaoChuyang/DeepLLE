@@ -1,0 +1,69 @@
+{
+    "name": "base_isp_exp",
+    "data_factory": {
+        "train": {
+            "name": "LOL",
+            "args": {
+                "root": "/data/chuyang/datasets/lol_dataset"
+            },
+            "batch_size": 4,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "RandomCrop",
+                    "args": {
+                        "size": 512
+                    }
+                },
+                {
+                    "name": "RandomHorizontalFlip",
+                    "args": {
+                        "flip_prob": 0.5
+                    }
+                },
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+
+        },
+        "valid": {
+            "name": "LOL",
+            "args": {
+                "root": "/data/chuyang/datasets/lol_dataset"
+            },
+            "batch_size": 16,
+            "num_workers": 0
+        }
+    },
+
+    "model": {
+        "name": "UNetBaseline",
+        "args": {
+            "bilinear": false
+        }
+    },
+
+    "trainer": {
+        "epochs": 5,
+        "iters_per_epoch": -1,
+        "saved_period": 1000,
+        "eval_period": 1000,
+        "log_period": 50,
+        "save_dir": "../event_logs",
+        "verbosity": 2,
+        "monitor": "min valid_loss",
+        "max_eval_iters": -1,
+        "tensorboard": true
+   },
+
+   "solver": {
+        "optimizer": {
+            "name": "Adam",
+            "args": {
+                "lr": 3e-4
+            }
+        }
+   }
+}

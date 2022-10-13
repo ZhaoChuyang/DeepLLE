@@ -14,7 +14,7 @@ class BaseTrainer:
     """
     def __init__(self, model, optimizer, config, train_loader, valid_loader = None) -> None:
         self.config = config
-        self.logger = logging.getLogger('trainer', config['trainer']['verbosity'])
+        self.logger = logging.getLogger('train')
 
         self.model = model
         self.optimizer = optimizer
@@ -30,7 +30,9 @@ class BaseTrainer:
         self.epochs = cfg_trainer['epochs']
         self.saved_period = cfg_trainer['saved_period']
         self.eval_period = cfg_trainer['eval_period']
+        self.log_period = cfg_trainer['log_period']
         self.monitor = cfg_trainer.get('moniter', 'off')
+        self.max_eval_iters = cfg_trainer.get("max_eval_iters", -1)
 
         self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
 
@@ -62,8 +64,8 @@ class BaseTrainer:
         # set tensorboard
         self.tb_writer = TensorboardWriter(cfg_trainer["log_dir"], self.logger, cfg_trainer["tensorboard"])
 
-        self.train_metrics = MetricTracker('total_loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
-        self.valid_metrics = MetricTracker('total_loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.train_metrics = MetricTracker(writer=self.tb_writer)
+        self.valid_metrics = MetricTracker(writer=self.tb_writer)
 
         if self.config.get("resume_checkpoint", None):
             self._resume_checkpoint(self.config.get("resume_checkpoint"))
@@ -186,11 +188,10 @@ class Trainer(BaseTrainer):
     """
     Basic Trainer that is suitable for most of the training tasks.
     """
-    def __init__(self, model, metric_ftns, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
+    def __init__(self, model, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
         super().__init__(model, optimizer, config, train_loader, valid_loader)
 
         self.device = device
-        self.metric_ftns = metric_ftns
         self.lr_scheduler = lr_scheduler
 
     def run_step(self):
@@ -209,6 +210,7 @@ class Trainer(BaseTrainer):
             loss_dict = {"total_loss": losses}
         else:
             losses = sum(loss_dict.values())
+            loss_dict["total_loss"] = losses
         
         if isinstance(output_dict, torch.Tensor):
             outputs = output_dict
@@ -224,16 +226,16 @@ class Trainer(BaseTrainer):
         assert mode in ['train', 'valid'], "Mode can only be 'train' or 'valid'. Got {}.".format(mode)
         
         if mode == 'train':
-            metirc = self.train_metrics
+            metric = self.train_metrics
         else:
             metric = self.valid_metrics
             
         self.tb_writer.set_step(self.iter, mode)
 
-        for key, loss in loss_dict:
+        for key, loss in loss_dict.items():
             metric.update(key, loss.detach().cpu().item())
         
-        for key, output in output_dict:
+        for key, output in output_dict.items():
             metric.update(key, output)
 
     def after_step(self):
@@ -244,7 +246,7 @@ class Trainer(BaseTrainer):
             self.lr_scheduler.step()
 
         # print training information to the screen periodically.
-        if self.iter % self.log_perid == 0:
+        if self.iter % self.log_period == 0:
             self.logger.debug('Epoch: {} \t Train Iteration: [{}/{} ({:.0f}%)] \t Loss: {:.6f}'.format(
                     self.iter,
                     self.max_iter,
@@ -299,6 +301,9 @@ class Trainer(BaseTrainer):
 
         # inference dataset must have a fixed length
         total = len(self.valid_loader)
+        if self.max_eval_iters != -1:
+            total = min(self.max_eval_iters, total)
+        
         start_time = time.perf_counter()
 
         for idx, data in enumerate(self._valid_loader_iter):
@@ -319,6 +324,10 @@ class Trainer(BaseTrainer):
                 output_dict = {"outputs": outputs}
 
             self.write_metrics('valid', output_dict, loss_dict)
+
+            # early stop
+            if idx == self.max_eval_iters:
+                break
         
         total_time = time.perf_counter() - start_time
 

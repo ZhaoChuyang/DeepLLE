@@ -1,7 +1,95 @@
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import argparse
+from distutils.command.build import build
 import os
-from utils import init_config, setup_logger, mkdirs
+import torch
+from torch import nn
+import logging
+import json
+
+from .data.build import build_train_loader, build_test_loader
+from .utils import init_config, setup_logger, mkdirs
+from .engine.trainer import Trainer
+from .modeling import build_model
+from .data import build_transforms
+from .solver import build_optimizer, build_lr_scheduler
+from .data.datasets import LOL
+
+class ISPTrainer(Trainer):
+    def __init__(self, config, device):
+        self.device = device
+        cfg_model = config["model"]
+        model = self.build_model(cfg_model)
+
+        cfg_train_factory = config["data_factory"]["train"]
+        cfg_valid_factory = config["data_factory"]["valid"]
+        train_loader = self.build_train_loader(cfg_train_factory)
+        valid_loader = self.build_valid_loader(cfg_valid_factory)
+
+        cfg_solver = config["solver"]
+        optimizer = self.build_optimizer(cfg_solver, model)
+        lr_scheduler = self.build_lr_scheduler(cfg_solver)
+
+        super().__init__(model, train_loader, optimizer, config, device, valid_loader, lr_scheduler)
+
+
+    def build_model(self, cfg_model):
+        # turn off testing when in training mode
+        cfg_model["args"]["testing"] = False
+
+        model = build_model(cfg_model)
+        model = nn.parallel.DataParallel(model)
+        model.to(self.device)
+        
+        return model
+
+    def build_train_loader(self, cfg_train_factory):
+        batch_size = cfg_train_factory["batch_size"]
+        num_workers = cfg_train_factory["num_workers"]
+
+        # build transforms
+        cfg_transforms = cfg_train_factory.get("transforms", None)
+        transforms = build_transforms(cfg_transforms)
+
+        # build dataset
+        dataset = LOL(mode="train", transforms = transforms, **cfg_train_factory["args"])
+
+        # build dataloader
+        dataloader = build_train_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        
+        return dataloader
+
+    def build_valid_loader(self, cfg_valid_factory):
+        batch_size = cfg_valid_factory["batch_size"]
+        num_workers = cfg_valid_factory["num_workers"]
+
+        # build transforms
+        cfg_transforms = cfg_valid_factory.get("transforms", None)
+        transforms = build_transforms(cfg_transforms)
+
+        # build dataset
+        dataset = LOL(mode="eval", transforms = transforms, **cfg_valid_factory["args"])
+
+        # build dataloader
+        dataloader = build_test_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        
+        return dataloader
+
+    def build_optimizer(self, cfg_solver, model):
+        name = cfg_solver["optimizer"]["name"]
+        args = cfg_solver["optimizer"]["args"]
+        optimizer = build_optimizer(model, name, **args)
+        return optimizer
+
+    def build_lr_scheduler(self, cfg_solver):
+        cfg_lr_scheduler = cfg_solver.get("lr_scheduler", None)
+        
+        if cfg_lr_scheduler is not None:
+            lr_scheduler = build_lr_scheduler(cfg_lr_scheduler)
+        else:
+            lr_scheduler = None
+        
+        return lr_scheduler
 
 
 def main():
@@ -17,8 +105,19 @@ def main():
     mkdirs(config["trainer"]["log_dir"])
 
     setup_logger(config["trainer"]["log_dir"])
-    
-    print(config)
+    logger = logging.getLogger('train')
+
+    logger.info("Configuration:")
+    logger.info(json.dumps(config, indent=4))
+
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+
+    trainer = ISPTrainer(config, device)
+    trainer.train()
+
 
 if __name__ == '__main__':
     main()

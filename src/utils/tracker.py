@@ -87,9 +87,9 @@ class TensorboardWriter():
 
 
 class MetricTracker:
-    def __init__(self, *keys, writer=None):
+    def __init__(self, writer=None):
         self.writer = writer
-        self._data = pd.DataFrame(index=keys, columns=['total', 'counts', 'average'])
+        self._data = pd.DataFrame(index=["total_loss"], columns=['total', 'counts', 'average'])
         self.reset()
 
     def reset(self):
@@ -99,6 +99,11 @@ class MetricTracker:
     def update(self, key, value, n=1):
         if self.writer is not None:
             self.writer.add_scalar(key, value)
+        
+        if key not in self._data.index:
+            record = pd.DataFrame({'total': 0, 'counts': 0, 'average': 0}, index=[key])
+            self._data = pd.concat([self._data, record], verify_integrity=True)
+        
         self._data.total[key] += value * n
         self._data.counts[key] += n
         self._data.average[key] = self._data.total[key] / self._data.counts[key]

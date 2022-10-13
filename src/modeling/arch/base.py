@@ -21,10 +21,11 @@ class BaseISPModel(nn.Module):
                 validation stage.                
 
         """
+        super().__init__()
         self.testing = testing
 
         # register a dummy tensor, which will be used to infer the device of the current model
-        self.dummy = self.register_buffer("dummy", torch.empty(0), False)
+        self.register_buffer("dummy", torch.empty(0), False)
     
     @property
     def device(self):
@@ -67,7 +68,7 @@ class BaseISPModel(nn.Module):
         collate them.
         2. Put the input images to the current device.
         """
-        images = [self._move_to_current_device(x['images'] for x in batched_inputs)]
+        images = [self._move_to_current_device(x['image']) for x in batched_inputs]
         images, image_sizes = pad_collate_images(images, self.size_divisibility)
         return images, image_sizes
 
@@ -86,5 +87,3 @@ class BaseISPModel(nn.Module):
         """
         return remove_padding(images, image_sizes)
         
-
-

@@ -10,20 +10,39 @@ import pathlib
 _seed = int(time.time())
 
 
-def read_json(path):
+def read_json(path: str):
     with open(path, "r") as fb:
         data = json.load(fb)
     return data
 
 
-def check_path_exists(path):
-    """Return true if the given path exists, false if not.
+def check_path_exists(path: str):
+    """
+    Return true if the given path exists, false if not.
     """
     return os.path.exists(path)
 
 
+def check_path_is_image(path: str):
+    """
+    Check whether the file of the given path is an image by checking the file extension.
+    Valid image file extension includes ["jpg", "jpeg", "tiff", "bmp", "png"].
+    
+    Args:
+        path (str): path of the checking file.
+    
+    Returns:
+        Returns True if the file is an image file, otherwise False.
+    """
+    valid_file_extension = ("jpg", "jpeg", "tiff", "bmp", "png")
+    if path.endswith(valid_file_extension):
+        return True
+    return False
+
+
 def mkdirs(dirpath):
-    """equivelent to "mkdir -p"
+    """
+    equivelent to "mkdir -p"
     Make directory in dirpath, if its parent directories do not exist, create its parent directories too.
     """
     pathlib.Path(dirpath).mkdir(parents=True, exist_ok=True)

@@ -5,13 +5,13 @@
         "train": {
             "name": "TrainDataFactory",
             "args": {
-                "a1": "a1"
+                "arg1": "arg1"
             }
         },
         "valid": {
             "name": "TrainDataFactory",
             "args": {
-                "a1": "a1"
+                "arg1": "arg1"
             }
         }
     },
