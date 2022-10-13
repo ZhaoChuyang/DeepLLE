@@ -52,8 +52,7 @@ class LOL(BaseISPDataset):
             src = Image.open(src_path)
             tgt = Image.open(tgt_path)
             
-            src = self.transforms(src)
-            tgt = self.transforms(tgt)
+            src, tgt = self.transforms(src, tgt)
 
             return {
                 "image": src,

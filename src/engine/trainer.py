@@ -31,7 +31,7 @@ class BaseTrainer:
         self.saved_period = cfg_trainer['saved_period']
         self.eval_period = cfg_trainer['eval_period']
         self.log_period = cfg_trainer['log_period']
-        self.monitor = cfg_trainer.get('moniter', 'off')
+        self.monitor = cfg_trainer.get('monitor', 'off')
         self.max_eval_iters = cfg_trainer.get("max_eval_iters", -1)
 
         self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
@@ -48,6 +48,7 @@ class BaseTrainer:
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
             self.mnt_mode = 'off'
+            self.mnt_metric = 'total_loss'
             self.mnt_best = 0
         else:
             self.mnt_mode, self.mnt_metric = self.monitor.split()
@@ -247,11 +248,11 @@ class Trainer(BaseTrainer):
 
         # print training information to the screen periodically.
         if self.iter % self.log_period == 0:
-            self.logger.debug('Epoch: {} \t Train Iteration: [{}/{} ({:.0f}%)] \t Loss: {:.6f}'.format(
+            self.logger.info('Epoch: {}, Train Iteration: [{}/{} ({:.0f}%)], Loss: {:.6f}'.format(
+                    self.epoch,
                     self.iter,
                     self.max_iter,
-                    self.iter / self.max_iter,
-                    self.epoch,
+                    100 * self.iter / self.max_iter,
                     self.train_metrics.avg('total_loss')))
 
         # evaluate on the validation dataset periodically if validation dataset is provided.
@@ -280,7 +281,7 @@ class Trainer(BaseTrainer):
         # evaluate model performance according to configured metric, save best checkpoint as model_best
         best = False
         if self.mnt_mode != 'off':
-
+            
             if self.mnt_metric not in result:
                 self.logger.error("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
                 raise RuntimeError("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
@@ -292,7 +293,7 @@ class Trainer(BaseTrainer):
                 self.mnt_best = result[self.mnt_metric]
                 best = True
 
-        filename = "model_{}_{}.pt".format(self.iter, result[self.mnt_metric])
+        filename = "model_{}_{:.3f}.pt".format(self.iter, result[self.mnt_metric])
         self._save_checkpoint(filename, save_best=best)
 
     @torch.no_grad()
@@ -300,15 +301,14 @@ class Trainer(BaseTrainer):
         self.model.eval()
 
         # inference dataset must have a fixed length
-        total = len(self.valid_loader)
         if self.max_eval_iters != -1:
-            total = min(self.max_eval_iters, total)
+            total = min(self.max_eval_iters, len(self.valid_loader))
+        else:
+            total = len(self.valid_loader)
         
         start_time = time.perf_counter()
 
         for idx, data in enumerate(self._valid_loader_iter):
-            data = self.put_on_device(data)
-
             loss_dict, output_dict = self.model(data)
 
             self.tb_writer.set_step((self.iter // self.eval_period - 1) * total + idx, 'valid')
@@ -318,6 +318,7 @@ class Trainer(BaseTrainer):
                 loss_dict = {"total_loss": losses}
             else:
                 losses = sum(loss_dict.values())
+                loss_dict = {"total_loss": losses}
             
             if isinstance(output_dict, torch.Tensor):
                 outputs = output_dict

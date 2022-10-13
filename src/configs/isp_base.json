@@ -46,14 +46,14 @@
     },
 
     "trainer": {
-        "epochs": 5,
+        "epochs": 10,
         "iters_per_epoch": -1,
-        "saved_period": 1000,
-        "eval_period": 1000,
+        "saved_period": 100,
+        "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
         "verbosity": 2,
-        "monitor": "min valid_loss",
+        "monitor": "min valid_total_loss",
         "max_eval_iters": -1,
         "tensorboard": true
    },

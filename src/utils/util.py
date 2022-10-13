@@ -40,10 +40,15 @@ def check_path_is_image(path: str):
     return False
 
 
-def mkdirs(dirpath):
+def mkdirs(dirpath: str):
     """
     equivelent to "mkdir -p"
     Make directory in dirpath, if its parent directories do not exist, create its parent directories too.
+
+    Note: this method will not override existing directory.
+
+    Args:
+        dirpath (str): path of the target directory.
     """
     pathlib.Path(dirpath).mkdir(parents=True, exist_ok=True)
 
