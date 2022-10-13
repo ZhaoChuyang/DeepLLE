@@ -7,11 +7,10 @@ from torch import nn
 import logging
 import json
 
-from .data.build import build_train_loader, build_test_loader
 from .utils import init_config, setup_logger, mkdirs
 from .engine.trainer import Trainer
 from .modeling import build_model
-from .data import build_transforms
+from .data import build_transforms, build_train_loader, build_test_loader
 from .solver import build_optimizer, build_lr_scheduler
 from .data.datasets import LOL
 
