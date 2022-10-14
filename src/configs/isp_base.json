@@ -61,7 +61,8 @@
         "verbosity": 2,
         "monitor": "min valid_total_loss",
         "max_eval_iters": -1,
-        "tensorboard": true
+        "tensorboard": true,
+        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt"
    },
 
    "solver": {

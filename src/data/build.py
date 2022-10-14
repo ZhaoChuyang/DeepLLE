@@ -1,10 +1,12 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
-from .comm import ToIterableDataset
+from .comm import ToIterableDataset, CommISPDataset
 import torch.utils.data as torchdata
 from .samplers import TrainingSampler, InferenceSampler
+from .catalog import _DatasetCatalog
 
 
 __all__ = ['build_batch_data_loader', 'build_train_loader', 'build_test_loader']
+
 
 
 def build_batch_data_loader(
@@ -34,15 +36,26 @@ def build_batch_data_loader(
 
 def build_train_loader(
     dataset,
-    *,
-    sampler=None,
     batch_size,
+    transforms,
+    sampler=None,
     num_workers=0,
     collate_fn=None
 ):
     """
     Build a train loader.
+
+    Args:
+        dataset: list or data.Dataset instance. 
+
+    Typically, if you want to use a dataset for a long time, you can
+    register it in data/datasets, so that it can be easily loaded just
+    given its registered name. But if you want to do some temporary
+    experiments on a dataset, you can implement it as data.Dataset and
+    manually load it.
     """
+    if isinstance(dataset, list):
+        dataset = CommISPDataset(dataset, True, transforms)
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:
@@ -61,15 +74,17 @@ def build_train_loader(
 
 def build_test_loader(
     dataset,
-    *,
-    sampler=None,
+    transforms,
     batch_size: int = 1,
+    sampler=None,
     num_workers: int = 0,
     collate_fn = None,
 ):
     """
     Build a test loader.
     """
+    if isinstance(dataset, list):
+        dataset = CommISPDataset(dataset, False, transforms)
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:

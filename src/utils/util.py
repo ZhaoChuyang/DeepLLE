@@ -35,7 +35,7 @@ def check_path_is_image(path: str):
         Returns True if the file is an image file, otherwise False.
     """
     valid_file_extension = ("jpg", "jpeg", "tiff", "bmp", "png")
-    if path.endswith(valid_file_extension):
+    if path.lower().endswith(valid_file_extension):
         return True
     return False
 

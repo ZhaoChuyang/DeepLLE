@@ -50,7 +50,11 @@ class ISPTrainer(Trainer):
         cfg_transforms = cfg_train_factory.get("transforms", None)
         transforms = build_transforms(cfg_transforms)
 
+        # TODO: not a good practice to use transforms as the dataset argument directly.
+        # considering implement a wrapper dataset which takes list of dataset, transforms, mode as argument.
+
         # build dataset
+        # FIXME: substitue it with registered dataset.
         dataset = LOL(mode="train", transforms = transforms, **cfg_train_factory["args"])
 
         # build dataloader

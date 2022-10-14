@@ -6,7 +6,6 @@ def build_transforms(cfg_transforms: List[Dict] = None):
 
     if cfg_transforms is None:
         transforms = T.Compose([
-            T.RandomHorizontalFlip(0.5),
             T.ToTensor()
         ])
     else:

@@ -68,8 +68,8 @@ class BaseTrainer:
         self.train_metrics = MetricTracker(writer=self.tb_writer)
         self.valid_metrics = MetricTracker(writer=self.tb_writer)
 
-        if self.config.get("resume_checkpoint", None):
-            self._resume_checkpoint(self.config.get("resume_checkpoint"))
+        if cfg_trainer.get("resume_checkpoint", None):
+            self._resume_checkpoint(cfg_trainer.get("resume_checkpoint"))
 
     @property
     def epoch(self):
@@ -171,7 +171,7 @@ class BaseTrainer:
 
         self.iter = checkpoint['iter'] + 1
         self.start_iter = checkpoint['iter'] + 1
-        self.mnt_best = checkpoint['moniter_best']
+        self.mnt_best = checkpoint['monitor_best']
 
         missing_keys, unexpected_keys = self.model.load_state_dict(checkpoint['state_dict'])
         
@@ -182,7 +182,7 @@ class BaseTrainer:
         except:
             self.logger.warning("Warning: Failed to read the state dict of the optimizer.")
 
-        self.logger("Checkpoint loaded, resume training from epoch: {}".format(self.start_epoch))
+        self.logger.info("Checkpoint loaded, resume training from iteration: {}".format(self.start_iter))
 
 
 class Trainer(BaseTrainer):
