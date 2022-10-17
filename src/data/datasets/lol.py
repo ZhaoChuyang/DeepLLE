@@ -30,8 +30,8 @@ def load_lol_dataset(root: str, split: str):
         if not check_path_is_image(filename):
             continue
         record = {}
-        src_path = os.path.join(root, 'our485/high', filename)
-        tgt_path = os.path.join(root, 'our485/low', filename)
+        src_path = os.path.join(root, 'our485/low', filename)
+        tgt_path = os.path.join(root, 'our485/high', filename)
         record["image_path"] = src_path
         record["target_path"] = tgt_path
         train_dicts.append(record)
@@ -39,8 +39,8 @@ def load_lol_dataset(root: str, split: str):
     for filename in os.listdir(os.path.join(root, 'eval15/high')):
         if not check_path_is_image(filename):
             continue
-        src_path = os.path.join(root, 'eval15/high', filename)
-        tgt_path = os.path.join(root, 'eval15/low', filename)
+        src_path = os.path.join(root, 'eval15/low', filename)
+        tgt_path = os.path.join(root, 'eval15/high', filename)
         record["image_path"] = src_path
         record["target_path"] = tgt_path
         val_dicts.append(record)\

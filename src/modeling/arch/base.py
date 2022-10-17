@@ -18,7 +18,8 @@ class BaseISPModel(nn.Module):
             testing (bool): Set to False in testing stage. This is used to
                 distinguish model between testing and validation stage,
                 because self.training is False in both testing and
-                validation stage.                
+                validation stage. In testing mode, we assume target is
+                not provided.              
 
         """
         super().__init__()

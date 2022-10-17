@@ -2,6 +2,7 @@
 import os
 import json
 import time
+import glob
 import pathlib
 
 
@@ -14,6 +15,21 @@ def read_json(path: str):
     with open(path, "r") as fb:
         data = json.load(fb)
     return data
+
+
+def find_files(pattern: str):
+    """
+    Find all files in path based on pattern with filenames matched with pattern,
+    return them as a list.
+
+    Args:
+        pattern (str): name pattern, such as "*.rar".
+    
+    Returns:
+        A list contains file paths of all files in base directory whose
+        path string is matched with pattern.
+    """
+    return glob.glob(pattern)
 
 
 def check_path_exists(path: str):

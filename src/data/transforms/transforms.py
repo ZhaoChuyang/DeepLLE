@@ -22,10 +22,15 @@ class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, image, target):
-        for t in self.transforms:
-            image, target = t(image, target)
-        return image, target
+    def __call__(self, image, target = None):
+        if target is None:
+            for t in self.transforms:
+                image = t(image)
+            return image
+        else:
+            for t in self.transforms:
+                image, target = t(image, target)
+            return image, target
 
 
 class RandomResize:
@@ -112,7 +117,10 @@ class ToTensor:
     def __init__(self):
         pass
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = F.to_tensor(image)
+        if target is None:
+            return image
+        
         target = F.to_tensor(target)
         return image, target

@@ -12,7 +12,7 @@ from .engine.trainer import Trainer
 from .modeling import build_model
 from .data import build_transforms, build_train_loader, build_test_loader
 from .solver import build_optimizer, build_lr_scheduler
-from .data.datasets import LOL
+
 
 class ISPTrainer(Trainer):
     def __init__(self, config, device):
@@ -53,12 +53,11 @@ class ISPTrainer(Trainer):
         # TODO: not a good practice to use transforms as the dataset argument directly.
         # considering implement a wrapper dataset which takes list of dataset, transforms, mode as argument.
 
-        # build dataset
-        # FIXME: substitue it with registered dataset.
-        dataset = LOL(mode="train", transforms = transforms, **cfg_train_factory["args"])
+        # build dataset / get dataset names
+        names = cfg_train_factory["names"]
 
         # build dataloader
-        dataloader = build_train_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        dataloader = build_train_loader(names=names, batch_size=batch_size, num_workers=num_workers, transforms=transforms)
         
         return dataloader
 
@@ -71,10 +70,10 @@ class ISPTrainer(Trainer):
         transforms = build_transforms(cfg_transforms)
 
         # build dataset
-        dataset = LOL(mode="eval", transforms = transforms, **cfg_valid_factory["args"])
+        names = cfg_valid_factory["names"]
 
         # build dataloader
-        dataloader = build_test_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        dataloader = build_test_loader(names=names, batch_size=batch_size, num_workers=num_workers, transforms=transforms)
         
         return dataloader
 

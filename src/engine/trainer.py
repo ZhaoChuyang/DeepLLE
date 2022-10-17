@@ -335,3 +335,15 @@ class Trainer(BaseTrainer):
                 total_time, total_time / total
                 )
             )
+
+    @classmethod
+    def build_evaluator(cls, cfg, dataset_name):
+        """
+        Returns:
+            DatasetEvaluator or None
+
+        It is not implemented by default.
+        """
+        raise NotImplementedError("Please implement `build_evaluator()` in subclass if you want to do test by the trainer.")
+
+    

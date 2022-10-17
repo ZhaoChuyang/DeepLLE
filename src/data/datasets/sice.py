@@ -1,7 +1,7 @@
 # Created on Fri Oct 14 2022 by Chuyang Zhao
 import os
 import random
-from ...utils import check_path_is_image
+from ...utils import check_path_is_image, find_files
 import random
 from ..catalog import DATASET_CATALOG
 
@@ -32,19 +32,23 @@ def load_sice_dataset(root: str, split: str, seed: int = 0):
     dataset = []
 
     for imgdir in os.listdir(os.path.join(root, "Dataset_Part1")):
+        if imgdir == "Label": continue
         for filename in os.listdir(os.path.join(root, "Dataset_Part1", imgdir)):
             image_path = os.path.join(root, "Dataset_Part1", imgdir, filename)
             if not check_path_is_image(image_path):
                 continue
-            target_path = os.path.join(root, "Dataset_Part1", "Label", f"{imgdir}.JPG")
+            target_paths = find_files(os.path.join(root, "Dataset_Part1", "Label", f"{imgdir}.*"))
+            target_path = target_paths[0]
             dataset.append({"image_path": image_path, "target_path": target_path})
     
     for imgdir in os.listdir(os.path.join(root, "Dataset_Part2")):
+        if imgdir == "Label": continue
         for filename in os.listdir(os.path.join(root, "Dataset_Part2", imgdir)):
             image_path = os.path.join(root, "Dataset_Part2", imgdir, filename)
             if not check_path_is_image(image_path):
                 continue
-            target_path = os.path.join(root, "Dataset_Part2", "Label", f"{imgdir}.JPG")
+            target_paths = find_files(os.path.join(root, "Dataset_Part2", "Label", f"{imgdir}.*"))
+            target_path = target_paths[0]
             dataset.append({"image_path": image_path, "target_path": target_path})
     
     random.seed(seed)

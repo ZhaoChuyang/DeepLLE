@@ -2,13 +2,10 @@
     "name": "base_isp_exp",
     "data_factory": {
         "train": {
-            "name": "LOL",
-            "args": {
-                "root": "/data/chuyang/datasets/lol_dataset"
-            },
-            "batch_size": 4,
+            "names": ["lol_train", "sice_all"],
+            "batch_size": 2,
             "num_workers": 0,
-            "transforms": [
+            "_transforms": [
                 {
                     "name": "RandomCrop",
                     "args": {
@@ -25,15 +22,41 @@
                     "name": "ToTensor",
                     "args": {}
                 }
+            ],
+            "transforms": [
+                {
+                    "name": "RandomCrop",
+                    "args": {
+                        "size": 800
+                    }
+                },
+                {
+                    "name": "RandomHorizontalFlip",
+                    "args": {
+                        "flip_prob": 0.5
+                    }
+                },
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
             ]
 
         },
         "valid": {
-            "name": "LOL",
-            "args": {
-                "root": "/data/chuyang/datasets/lol_dataset"
-            },
+            "names": "lol_val",
             "batch_size": 16,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        },
+        "test": {
+            "img_dir": "/data/chuyang/datasets/test/Test",
+            "batch_size": 2,
             "num_workers": 0,
             "transforms": [
                 {
@@ -52,9 +75,9 @@
     },
 
     "trainer": {
-        "epochs": 10,
+        "epochs": 5,
         "iters_per_epoch": -1,
-        "saved_period": 100,
+        "saved_period": 500,
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
@@ -62,7 +85,7 @@
         "monitor": "min valid_total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt"
+        "_resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt"
    },
 
    "solver": {
@@ -72,5 +95,10 @@
                 "lr": 3e-4
             }
         }
+   },
+
+   "test": {
+        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
+        "save_dir": "../event_logs/base_isp_exp/test/Test"
    }
 }
