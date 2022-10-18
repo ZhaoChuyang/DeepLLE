@@ -12,12 +12,13 @@ class BaseTrainer:
     """
     Base class for all trainers.
     """
-    def __init__(self, model, optimizer, config, train_loader, valid_loader = None) -> None:
+    def __init__(self, model, optimizer, config, train_loader, valid_loader = None, lr_scheduler = None) -> None:
         self.config = config
         self.logger = logging.getLogger('train')
 
         self.model = model
         self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
         self.train_loader = train_loader
         self._train_loader_iter = iter(self.train_loader)
 
@@ -138,6 +139,7 @@ class BaseTrainer:
             'iter': self.iter,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
+            'lr_scheduler': self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
             'monitor_best': self.mnt_best,
             'config': self.config
         }
@@ -182,6 +184,11 @@ class BaseTrainer:
         except:
             self.logger.warning("Warning: Failed to read the state dict of the optimizer.")
 
+        try:
+            self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+        except:
+            self.logger.warning("Warning: Failed to load the state dict of the lr_scheduler.")
+
         self.logger.info("Checkpoint loaded, resume training from iteration: {}".format(self.start_iter))
 
 
@@ -190,10 +197,9 @@ class Trainer(BaseTrainer):
     Basic Trainer that is suitable for most of the training tasks.
     """
     def __init__(self, model, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
-        super().__init__(model, optimizer, config, train_loader, valid_loader)
+        super().__init__(model, optimizer, config, train_loader, valid_loader, lr_scheduler)
 
-        self.device = device
-        self.lr_scheduler = lr_scheduler
+        self.use_grad_clip = config['trainer'].get('use_grad_clip', None)
 
     def run_step(self):
         assert self.model.training, "[Trainer] model was changed to eval mode!"
@@ -219,6 +225,11 @@ class Trainer(BaseTrainer):
 
         self.optimizer.zero_grad()
         losses.backward()
+
+        # TODO: wrap the optimizer to do gradient clip
+        if self.use_grad_clip:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.01)
+        
         self.optimizer.step()
 
         self.write_metrics('train', self.iter, loss_dict, output_dict)

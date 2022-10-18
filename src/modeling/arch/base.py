@@ -4,8 +4,7 @@ import torch
 from torch import Tensor
 from torch import nn
 
-from ..preprocessing import pad_collate_images
-from ..postprocessing import remove_padding
+from ..processing import pad_collate_images, remove_padding
 
 
 class BaseISPModel(nn.Module):

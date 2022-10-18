@@ -2,32 +2,14 @@
     "name": "base_isp_exp",
     "data_factory": {
         "train": {
-            "names": ["lol_train", "sice_all"],
-            "batch_size": 2,
-            "num_workers": 0,
-            "_transforms": [
-                {
-                    "name": "RandomCrop",
-                    "args": {
-                        "size": 512
-                    }
-                },
-                {
-                    "name": "RandomHorizontalFlip",
-                    "args": {
-                        "flip_prob": 0.5
-                    }
-                },
-                {
-                    "name": "ToTensor",
-                    "args": {}
-                }
-            ],
+            "names": ["lol_train"],
+            "batch_size": 10,
+            "num_workers": 4,
             "transforms": [
                 {
                     "name": "RandomCrop",
                     "args": {
-                        "size": 800
+                        "size": 512
                     }
                 },
                 {
@@ -45,7 +27,7 @@
         },
         "valid": {
             "names": "lol_val",
-            "batch_size": 16,
+            "batch_size": 4,
             "num_workers": 0,
             "transforms": [
                 {
@@ -55,7 +37,7 @@
             ]
         },
         "test": {
-            "img_dir": "/data/chuyang/datasets/test/Test",
+            "img_dir": "/data/chuyang/datasets/LOL/eval15/low",
             "batch_size": 2,
             "num_workers": 0,
             "transforms": [
@@ -70,12 +52,12 @@
     "model": {
         "name": "UNetBaseline",
         "args": {
-            "bilinear": false
+            "bilinear": true
         }
     },
 
     "trainer": {
-        "epochs": 5,
+        "epochs": 100,
         "iters_per_epoch": -1,
         "saved_period": 500,
         "eval_period": 100,
@@ -85,20 +67,35 @@
         "monitor": "min valid_total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt"
+        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
+        "use_grad_clip": true
    },
 
    "solver": {
+        "_optimizer": {
+            "name": "SGD",
+            "args": {
+                "lr": 3e-5
+            }
+        },
         "optimizer": {
             "name": "Adam",
             "args": {
-                "lr": 3e-4
+                "lr": 2e-4
+            }
+        },
+        "lr_scheduler": {
+            "name": "WarmupMultiStepLR",
+            "args": {
+                "milestones": [2000, 4000],
+                "warmup_iters": 0,
+                "warmup_factor": 0.1
             }
         }
    },
 
    "test": {
         "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
-        "save_dir": "../event_logs/base_isp_exp/test/Test"
+        "save_dir": "../event_logs/base_isp_exp/test/lol"
    }
 }

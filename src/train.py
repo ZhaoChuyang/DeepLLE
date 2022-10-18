@@ -27,7 +27,8 @@ class ISPTrainer(Trainer):
 
         cfg_solver = config["solver"]
         optimizer = self.build_optimizer(cfg_solver, model)
-        lr_scheduler = self.build_lr_scheduler(cfg_solver)
+        lr_scheduler = self.build_lr_scheduler(cfg_solver, optimizer)
+        
 
         super().__init__(model, train_loader, optimizer, config, device, valid_loader, lr_scheduler)
 
@@ -83,11 +84,11 @@ class ISPTrainer(Trainer):
         optimizer = build_optimizer(model, name, **args)
         return optimizer
 
-    def build_lr_scheduler(self, cfg_solver):
+    def build_lr_scheduler(self, cfg_solver, optimizer):
         cfg_lr_scheduler = cfg_solver.get("lr_scheduler", None)
         
         if cfg_lr_scheduler is not None:
-            lr_scheduler = build_lr_scheduler(cfg_lr_scheduler)
+            lr_scheduler = build_lr_scheduler(optimizer, cfg_lr_scheduler["name"], **cfg_lr_scheduler["args"])
         else:
             lr_scheduler = None
         

@@ -12,7 +12,12 @@ Building Blocks of UNet
 """
 
 class DoubleConv(nn.Module):
-    """(convolution => [BN] => ReLU) * 2"""
+    """
+    (convolution => [BN] => ReLU) * 2
+
+    input: (b, in_channels, h, w)
+    output: (b, out_channels, h, w)
+    """
 
     def __init__(self, in_channels, out_channels, mid_channels=None):
         super().__init__()
@@ -21,7 +26,8 @@ class DoubleConv(nn.Module):
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(mid_channels),
-            nn.ReLU(inplace=True),
+            # nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True)
@@ -32,7 +38,14 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
-    """Downscaling with maxpool then double conv"""
+    """
+    Downscaling with maxpool then double conv
+
+    input => MaxPool => DoubleConv => output
+
+    input: (b, in_channels, h, w)
+    output: (b, out_channels, h // 2, w // 2)
+    """
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -46,7 +59,17 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
-    """Upscaling then double conv"""
+    """
+    Upscaling then double conv
+
+    Case 1: Transpose Conv
+    x1 => ConvTranspose
+    (x1 + x2) => DoubleConv => output
+
+    Case 2: Bilinear
+    x1 => Upsample
+    (x1 + x2) => DoubleConv => output
+    """
 
     def __init__(self, in_channels, out_channels, bilinear=True):
         super().__init__()
@@ -91,7 +114,7 @@ UNet Network
 """
 
 class UNet(nn.Module):
-    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False):
+    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, scales: int = 16, base_dim: int = 64):
         """
         Simple UNet implementation.
 
@@ -105,18 +128,32 @@ class UNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
+        self.scales = scales
+        
+        assert self.scales in [4, 16]
+        
+        self.inc = DoubleConv(n_channels, base_dim)
+        if self.scales == 4:
+            self.down1 = Down(base_dim, base_dim * 2)
+            factor = 2 if bilinear else 1
+            self.down2 = Down(base_dim * 2, base_dim * 4 // factor)
+            self.up3 = Up(base_dim * 4, base_dim * 2 // factor, bilinear)
+            self.up4 = Up(base_dim * 2, base_dim, bilinear)
 
-        self.inc = DoubleConv(n_channels, 64)
-        self.down1 = Down(64, 128)
-        self.down2 = Down(128, 256)
-        self.down3 = Down(256, 512)
-        factor = 2 if bilinear else 1
-        self.down4 = Down(512, 1024 // factor)
-        self.up1 = Up(1024, 512 // factor, bilinear)
-        self.up2 = Up(512, 256 // factor, bilinear)
-        self.up3 = Up(256, 128 // factor, bilinear)
-        self.up4 = Up(128, 64, bilinear)
-        self.outc = OutConv(64, n_classes)
+        elif self.scales == 16:
+            self.down1 = Down(base_dim, base_dim * 2)
+            self.down2 = Down(base_dim * 2, base_dim * 4)
+            self.down3 = Down(base_dim * 4, base_dim * 8)
+            factor = 2 if bilinear else 1
+            self.down4 = Down(base_dim * 8, base_dim * 16 // factor)
+        
+            self.up1 = Up(base_dim * 16, base_dim * 8 // factor, bilinear)
+            self.up2 = Up(base_dim * 8, base_dim * 4 // factor, bilinear)
+            self.up3 = Up(base_dim * 4, base_dim * 2 // factor, bilinear)
+            self.up4 = Up(base_dim * 2, base_dim, bilinear)
+
+        self.outc = OutConv(base_dim, n_classes)
+        # self.final = OutConv(n_classes * 2, n_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -127,16 +164,26 @@ class UNet(nn.Module):
             outputs (Tensor): outputs is of (B, C, H, W), C equals self.n_classes,
                 B, H and W are the same as input x.
         """
+        inp = x
         x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
+        if self.scales == 16:
+            x2 = self.down1(x1)
+            x3 = self.down2(x2)
+            x4 = self.down3(x3)
+            x5 = self.down4(x4)
+            x = self.up1(x5, x4)
+            x = self.up2(x, x3)
+            x = self.up3(x, x2)
+            x = self.up4(x, x1)
+        
+        elif self.scales == 4:
+            x2 = self.down1(x1)
+            x3 = self.down2(x2)
+            x = self.up3(x3, x2)
+            x = self.up4(x, x1)
+        
         logits = self.outc(x)
+        # logits = self.final(torch.cat([inp, out], dim=1))
 
         # TODO: add activation function to
         # constrain the outputs to valid range
