@@ -16,6 +16,7 @@ don't register your custom datasets in this file.
 """
 from .lol import register_lol_dataset
 from .sice import register_sice_dataset
+from .mbllen import register_mbllen_dataset
 
 
 def register_all_lol(root):
@@ -39,6 +40,16 @@ def register_all_sice(root):
         register_sice_dataset(name, os.path.join(root, dirname), split)
 
 
+def register_all_mbllen(root):
+    ALL = [
+        ("mbllen_dark", "MBLLEN", False),
+        ("mbllen_noisy", "MBLLEN", True),
+    ]
+    for name, dirname, noise in ALL:
+        register_mbllen_dataset(name, os.path.join(root, dirname), noise)
+
+
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))
 register_all_lol(_root)
 register_all_sice(_root)
+register_all_mbllen(_root)

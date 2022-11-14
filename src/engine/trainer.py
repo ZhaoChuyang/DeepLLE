@@ -184,10 +184,8 @@ class BaseTrainer:
         except:
             self.logger.warning("Warning: Failed to read the state dict of the optimizer.")
 
-        try:
-            self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        except:
-            self.logger.warning("Warning: Failed to load the state dict of the lr_scheduler.")
+        if self.lr_scheduler:
+            self.lr_scheduler.last_epoch = self.iter - 2
 
         self.logger.info("Checkpoint loaded, resume training from iteration: {}".format(self.start_iter))
 
@@ -265,6 +263,8 @@ class Trainer(BaseTrainer):
                     self.max_iter,
                     100 * self.iter / self.max_iter,
                     self.train_metrics.avg('total_loss')))
+            self.train_metrics.reset()
+            self.valid_metrics.reset()
 
         # evaluate on the validation dataset periodically if validation dataset is provided.
         if self.do_validation and self.iter % self.eval_period == 0:
@@ -304,7 +304,7 @@ class Trainer(BaseTrainer):
                 self.mnt_best = result[self.mnt_metric]
                 best = True
 
-        filename = "model_{}_{:.3f}.pt".format(self.iter, result[self.mnt_metric])
+        filename = "model_{}.pt".format(self.iter)
         self._save_checkpoint(filename, save_best=best)
 
     @torch.no_grad()

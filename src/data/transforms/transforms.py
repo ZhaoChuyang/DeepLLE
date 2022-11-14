@@ -66,13 +66,17 @@ class RandomCrop:
         """
         self.size = size
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = pad_if_smaller(image, self.size)
-        target = pad_if_smaller(target, self.size)
+        if target:
+            target = pad_if_smaller(target, self.size)
         crop_params = T.RandomCrop.get_params(image, (self.size, self.size))
         image = F.crop(image, *crop_params)
-        target = F.crop(target, *crop_params)
-        return image, target
+        if target:
+            target = F.crop(target, *crop_params)
+        if target:
+            return image, target
+        return image
 
 
 class CenterCrop:

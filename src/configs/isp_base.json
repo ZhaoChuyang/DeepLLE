@@ -2,14 +2,15 @@
     "name": "base_isp_exp",
     "data_factory": {
         "train": {
-            "names": ["lol_train"],
-            "batch_size": 10,
-            "num_workers": 4,
+            "names": ["mbllen_noisy"],
+            "_names": ["mbllen_noisy"],
+            "batch_size": 16,
+            "num_workers": 0,
             "transforms": [
                 {
                     "name": "RandomCrop",
                     "args": {
-                        "size": 512
+                        "size": 256
                     }
                 },
                 {
@@ -37,7 +38,7 @@
             ]
         },
         "test": {
-            "img_dir": "/data/chuyang/datasets/LOL/eval15/low",
+            "img_dir": "/data/chuyang/datasets/test/lol",
             "batch_size": 2,
             "num_workers": 0,
             "transforms": [
@@ -64,30 +65,30 @@
         "log_period": 50,
         "save_dir": "../event_logs",
         "verbosity": 2,
-        "monitor": "min valid_total_loss",
+        "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
-        "use_grad_clip": true
+        "_resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
+        "use_grad_clip": false
    },
 
    "solver": {
         "_optimizer": {
             "name": "SGD",
             "args": {
-                "lr": 3e-5
+                "lr": 1e-2
             }
         },
         "optimizer": {
             "name": "Adam",
             "args": {
-                "lr": 2e-4
+                "lr": 3e-3
             }
         },
         "lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [2000, 4000],
+                "milestones": [4000, 10000, 30000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }

@@ -65,3 +65,4 @@ def build_lr_scheduler(optimizer: torch.optim.Optimizer, name: str, **kwargs):
     else:
         raise NotImplementedError(
             "LRScheduler: {} is not implemented. Please choose from \"WarmupMultiStepLR\" and \"WarmupCosineLR\".".format(name))
+    return scheduler

@@ -4,8 +4,6 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms
 
 
-
-
 class MultipleEnvironmentImageFolder:
     def __init__(self, root, test_envs, augment):
         super().__init__()

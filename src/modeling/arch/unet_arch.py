@@ -13,7 +13,7 @@ from ..losses import L1Loss, MS_SSIM, SSIM
 class UNetBaseline(BaseISPModel):
     def __init__(self, bilinear: bool = False, testing: bool = False):
         super().__init__(testing=testing)
-        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, scales=16, base_dim=32)
+        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, scales=16, base_dim=8)
 
         self.activation = nn.Tanh()
         
