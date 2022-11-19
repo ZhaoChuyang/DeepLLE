@@ -13,7 +13,7 @@ from ..losses import L1Loss, MS_SSIM, SSIM
 class UNetBaseline(BaseISPModel):
     def __init__(self, bilinear: bool = False, testing: bool = False):
         super().__init__(testing=testing)
-        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, scales=16, base_dim=8)
+        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, scales=4, base_dim=32)
 
         self.activation = nn.Tanh()
         
@@ -42,7 +42,8 @@ class UNetBaseline(BaseISPModel):
         #     image = np.clip(image * 255, 0, 255)
         #     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         #     cv2.imwrite(save_path, image)
-        
+        # embed()
+
         outputs = self.backbone(images)
         # outputs = images * outputs
         # outputs = self.activation(outputs)
@@ -62,7 +63,7 @@ class UNetBaseline(BaseISPModel):
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
         # loss_dict["ms_ssim_loss"] = self.ms_ssim_loss(inputs, targets)
-        loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets)) * 0.2
+        # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets)) * 0.2
 
         return loss_dict
 

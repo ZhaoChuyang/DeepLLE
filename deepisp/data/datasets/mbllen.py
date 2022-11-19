@@ -3,13 +3,14 @@ from ...utils import check_path_is_image
 from ..catalog import DATASET_CATALOG
 
 
-def load_mbllen_dataset(root: str, noise: bool):
+def load_mbllen_dataset(root: str, noise: bool, identity_aug: bool = False):
     """
     Load MBLLEN dataset.
 
     Args:
         root (str): root dir of MBLLEN dataset, which should contains "train", "train_dark" and "train_lowlight" three sub-directories.
         noise (bool): set True to use low-light dataset with random poisson noise, otherwise use pure low_light dataset.
+        identity_aug (bool): construct another pair of training example with the same normal image as both input and target.
     
     Returns:
         a list of dataset dicts. Dataset dict contains:
@@ -36,7 +37,8 @@ def load_mbllen_dataset(root: str, noise: bool):
             }
 
             train_dicts.append(data_dict)
-            train_dicts.append(data_dict2)
+            if identity_aug:
+                train_dicts.append(data_dict2)
     
     return train_dicts
 

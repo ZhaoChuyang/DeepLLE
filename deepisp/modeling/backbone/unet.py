@@ -11,6 +11,45 @@ __all__ = ["UNet"]
 Building Blocks of UNet
 """
 
+
+# class DoubleConv(nn.Module):
+#     def __init__(self, in_size, out_size, mid_size=None, relu_slope=0.2, use_HIN=True):
+#         super(DoubleConv, self).__init__()
+#         if mid_size is None:
+#             mid_size = out_size
+#         self.identity = nn.Conv2d(in_size, out_size, 1, 1, 0)
+
+#         self.conv_1 = nn.Conv2d(in_size, mid_size, kernel_size=3, padding=1, bias=False)
+#         self.relu_1 = nn.LeakyReLU(relu_slope, inplace=False)
+#         self.conv_2 = nn.Conv2d(mid_size, out_size, kernel_size=3, padding=1, bias=False)
+#         self.relu_2 = nn.LeakyReLU(relu_slope, inplace=False)
+
+#         if use_HIN:
+#             # self.norm = nn.GroupNorm(num_groups=1, num_channels=mid_size//2, affine=True)
+#             self.norm = nn.InstanceNorm2d(mid_size//2, affine=True)
+#             # self.norm = nn.GroupNorm(num_groups=1, num_channels=mid_size, affine=True)
+
+#         self.use_HIN = use_HIN
+
+
+#     def forward(self, x):
+#         out = self.conv_1(x)
+
+#         if self.use_HIN:
+#             out_1, out_2 = torch.chunk(out, 2, dim=1)
+#             out = torch.cat([self.norm(out_1), out_2], dim=1)
+#             # out = self.norm(out) + out
+#             # out = torch.cat([self.norm(out), out], dim=1)
+#             # out = self.norm(out)
+        
+#         out = self.relu_1(out)
+#         out = self.conv_2(out)
+#         out = self.relu_2(out)
+
+#         out += self.identity(x)
+#         return out
+
+
 class DoubleConv(nn.Module):
     """
     (convolution => [BN] => ReLU) * 2
@@ -28,13 +67,16 @@ class DoubleConv(nn.Module):
             # nn.BatchNorm2d(mid_channels),
             # nn.InstanceNorm2d(num_features=mid_channels),
             # nn.GroupNorm(num_groups=mid_channels // 4, num_channels=mid_channels),
+            # nn.GroupNorm(num_groups=1, num_channels=mid_channels, affine=False),
             nn.GroupNorm(num_groups=1, num_channels=mid_channels),
             # nn.ReLU(inplace=True),
             nn.LeakyReLU(inplace=True),
+            # nn.SiLU(inplace=True),
             nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
             # nn.BatchNorm2d(out_channels),
             # nn.ReLU(inplace=True)
             nn.LeakyReLU(inplace=True)
+            # nn.SiLU(inplace=True)
         )
 
     def forward(self, x):
@@ -81,7 +123,8 @@ class Up(nn.Module):
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+            # self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+            self.conv = DoubleConv(in_channels, out_channels)
         else:
             self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
             self.conv = DoubleConv(in_channels, out_channels)
@@ -158,7 +201,17 @@ class UNet(nn.Module):
 
         self.outc = OutConv(base_dim, n_classes)
         # self.final = OutConv(n_classes * 2, n_classes)
+        # self._initialize()
 
+    
+    def _initialize(self):
+        gain = nn.init.calculate_gain('leaky_relu', 0.20)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.orthogonal_(m.weight, gain=gain)
+                if not m.bias is None:
+                    nn.init.constant_(m.bias, 0)
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:

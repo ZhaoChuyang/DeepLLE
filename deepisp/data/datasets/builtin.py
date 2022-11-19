@@ -17,6 +17,7 @@ don't register your custom datasets in this file.
 from .lol import register_lol_dataset
 from .sice import register_sice_dataset
 from .mbllen import register_mbllen_dataset
+from .ve_lol import register_ve_lol_dataset
 
 
 def register_all_lol(root):
@@ -49,7 +50,20 @@ def register_all_mbllen(root):
         register_mbllen_dataset(name, os.path.join(root, dirname), noise)
 
 
+def register_all_ve_lol(root):
+    ALL = [
+        ("ve_lol_syn_train", "VE-LOL", "syn", "train"),
+        ("ve_lol_syn_test", "VE-LOL", "syn", "test"),
+        ("ve_lol_real_train", "VE-LOL", "real", "train"),
+        ("ve_lol_real_test", "VE-LOL", "real", "test"),
+        ("ve_lol_all", "VE-LOL", "all", "all"),
+    ]
+    for name, dirname, category, split in ALL:
+        register_ve_lol_dataset(name, os.path.join(root, dirname), category, split)
+
+
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))
 register_all_lol(_root)
 register_all_sice(_root)
 register_all_mbllen(_root)
+register_all_ve_lol(_root)

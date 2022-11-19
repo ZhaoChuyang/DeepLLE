@@ -2,7 +2,7 @@
     "name": "base_isp_exp",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy"],
+            "names": ["ve_lol_all"],
             "_names": ["mbllen_noisy"],
             "batch_size": 16,
             "num_workers": 0,
@@ -38,7 +38,7 @@
             ]
         },
         "test": {
-            "img_dir": "/data/chuyang/datasets/test/lol",
+            "img_dir": "/data/chuyang/datasets/test/Surface",
             "batch_size": 2,
             "num_workers": 0,
             "transforms": [
@@ -73,12 +73,6 @@
    },
 
    "solver": {
-        "_optimizer": {
-            "name": "SGD",
-            "args": {
-                "lr": 1e-2
-            }
-        },
         "optimizer": {
             "name": "Adam",
             "args": {
@@ -97,6 +91,6 @@
 
    "test": {
         "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
-        "save_dir": "../event_logs/base_isp_exp/test/lol"
+        "save_dir": "../event_logs/base_isp_exp/test/Surface"
    }
 }

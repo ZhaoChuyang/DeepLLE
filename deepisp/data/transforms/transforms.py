@@ -33,6 +33,19 @@ class Compose:
             return image, target
 
 
+class Resize:
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, image, target = None):
+        size = self.size
+        image = F.resize(image, size)
+        if target is None:
+            return image
+        target = F.resize(target, size)
+        return image, target
+
+
 class RandomResize:
     def __init__(self, min_size, max_size=None):
         self.min_size = min_size
