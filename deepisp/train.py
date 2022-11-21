@@ -85,7 +85,7 @@ class ISPTrainer(Trainer):
         return optimizer
 
     def build_lr_scheduler(self, cfg_solver, optimizer):
-        cfg_lr_scheduler = cfg_solver.get("lr_scheduler", None)
+        cfg_lr_scheduler = cfg_solver["lr_scheduler"]
         
         if cfg_lr_scheduler is not None:
             lr_scheduler = build_lr_scheduler(optimizer, cfg_lr_scheduler["name"], **cfg_lr_scheduler["args"])

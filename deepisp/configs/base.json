@@ -1,27 +1,71 @@
 {
-    "name": "base_exp",
-    "resume_checkpoint": "",
+    "name": "base_isp_exp",
+    "base": "",
     "data_factory": {
         "train": {
-            "name": "TrainDataFactory",
-            "args": {
-                "arg1": "arg1"
-            }
+            "names": "lol_all",
+            "batch_size": 16,
+            "num_workers": 0,
+            "transforms": null
         },
         "valid": {
-            "name": "TrainDataFactory",
-            "args": {
-                "arg1": "arg1"
-            }
+            "names": "lol_val",
+            "batch_size": 4,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        },
+        "test": {
+            "img_dir": "",
+            "batch_size": 2,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
         }
     },
+
+    "model": {
+        "name": "UNetBaseline",
+        "args": {
+            "bilinear": true
+        }
+    },
+
     "trainer": {
-        "epochs": 1,
+        "epochs": 100,
         "iters_per_epoch": -1,
-        "early_stop": 10,
-        "saved_period": 100,
-        "save_dir": "event_logs",
+        "saved_period": 500,
+        "eval_period": 100,
+        "log_period": 50,
+        "save_dir": "../event_logs",
         "verbosity": 2,
-        "monitor": "min valid_loss"
+        "monitor": "min total_loss",
+        "max_eval_iters": -1,
+        "tensorboard": true,
+        "resume_checkpoint": "",
+        "use_grad_clip": false
+   },
+
+   "solver": {
+        "optimizer": {
+            "name": "Adam",
+            "args": {
+                "lr": 3e-3
+            }
+        },
+        "lr_scheduler": null
+   },
+
+   "test": {
+        "resume_checkpoint": "",
+        "save_dir": ""
    }
 }
