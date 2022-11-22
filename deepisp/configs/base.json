@@ -6,29 +6,20 @@
             "names": "lol_all",
             "batch_size": 16,
             "num_workers": 0,
-            "transforms": null
+            "transforms": null,
+            "sampler": "TrainSampler"
         },
         "valid": {
             "names": "lol_val",
             "batch_size": 4,
             "num_workers": 0,
-            "transforms": [
-                {
-                    "name": "ToTensor",
-                    "args": {}
-                }
-            ]
+            "transforms": null
         },
         "test": {
             "img_dir": "",
-            "batch_size": 2,
+            "batch_size": 4,
             "num_workers": 0,
-            "transforms": [
-                {
-                    "name": "ToTensor",
-                    "args": {}
-                }
-            ]
+            "transforms": null
         }
     },
 

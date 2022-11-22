@@ -1,5 +1,5 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
-from typing import Optional
+from typing import Optional, List
 import torch
 from torch.utils.data.sampler import Sampler
 from ... import utils
@@ -46,6 +46,11 @@ class TrainingSampler(Sampler):
                 yield from torch.arange(self._size)
 
 
+class BalancingSampler(Sampler):
+    def __init__(self, size: int, dataset_sizes: List[int]):
+        pass
+
+                
 class InferenceSampler(Sampler):
     """
     Sampler for inference dataset.

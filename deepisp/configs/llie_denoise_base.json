@@ -1,5 +1,5 @@
 {
-    "name": "base_isp_exp",
+    "name": "llie_denoise_base",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
@@ -69,7 +69,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp_1/checkpoints/model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
    },
 
@@ -91,7 +91,7 @@
    },
 
    "test": {
-        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
-        "save_dir": "../event_logs/base_isp_exp/test/Surface"
+        "resume_checkpoint": "model_best.pt",
+        "save_dir": "Surface"
    }
 }

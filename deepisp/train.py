@@ -46,9 +46,10 @@ class ISPTrainer(Trainer):
     def build_train_loader(self, cfg_train_factory):
         batch_size = cfg_train_factory["batch_size"]
         num_workers = cfg_train_factory["num_workers"]
+        sampler = cfg_train_factory["sampler"]
 
         # build transforms
-        cfg_transforms = cfg_train_factory.get("transforms", None)
+        cfg_transforms = cfg_train_factory["transforms"]
         transforms = build_transforms(cfg_transforms)
 
         # TODO: not a good practice to use transforms as the dataset argument directly.
@@ -58,7 +59,7 @@ class ISPTrainer(Trainer):
         names = cfg_train_factory["names"]
 
         # build dataloader
-        dataloader = build_train_loader(names=names, batch_size=batch_size, num_workers=num_workers, transforms=transforms)
+        dataloader = build_train_loader(names=names, batch_size=batch_size, num_workers=num_workers, sampler=sampler, transforms=transforms)
         
         return dataloader
 
@@ -67,7 +68,7 @@ class ISPTrainer(Trainer):
         num_workers = cfg_valid_factory["num_workers"]
 
         # build transforms
-        cfg_transforms = cfg_valid_factory.get("transforms", None)
+        cfg_transforms = cfg_valid_factory["transforms"]
         transforms = build_transforms(cfg_transforms)
 
         # build dataset
@@ -103,7 +104,7 @@ def main():
 
     config = init_config(args)
 
-    # create the log dir and checkpoints saved dir if not exist
+    # create the log dir and checkpoints saving dir if not exist
     mkdirs(config["trainer"]["ckp_dir"])
     mkdirs(config["trainer"]["log_dir"])
 

@@ -1,9 +1,10 @@
 {
-    "name": "base_isp_exp",
+    "name": "base_isp_exp_1",
+    "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["ve_lol_all"],
-            "_names": ["mbllen_noisy"],
+            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_all", "sice_all"],
+            "_names": ["mbllen_noisy", "ve_lol_real_train"],
             "batch_size": 16,
             "num_workers": 0,
             "transforms": [
@@ -38,10 +39,16 @@
             ]
         },
         "test": {
-            "img_dir": "/data/chuyang/datasets/test/Surface",
-            "batch_size": 2,
+            "img_dir": "/data/chuyang/datasets/test/lol",
+            "batch_size": 1,
             "num_workers": 0,
             "transforms": [
+                {
+                    "name": "Resize",
+                    "args": {
+                        "size": 800
+                    }
+                },
                 {
                     "name": "ToTensor",
                     "args": {}
@@ -68,7 +75,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
    },
 
@@ -82,7 +89,7 @@
         "lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [4000, 10000, 30000, 100000],
+                "milestones": [5000, 10000, 20000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }
@@ -90,7 +97,7 @@
    },
 
    "test": {
-        "resume_checkpoint": "/data/chuyang/event_logs/base_isp_exp/checkpoints/model_best.pt",
-        "save_dir": "../event_logs/base_isp_exp/test/Surface"
+        "resume_checkpoint": "model_best.pt",
+        "save_dir": "lol"
    }
 }

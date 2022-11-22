@@ -3,8 +3,9 @@ from typing import List, Optional
 import torch.utils.data as torchdata
 import itertools
 from .comm import ToIterableDataset, CommISPDataset
-from .samplers import TrainingSampler, InferenceSampler
+from .samplers import TrainingSampler, BalancingSampler, InferenceSampler
 from .catalog import DATASET_CATALOG
+import logging
 
 
 __all__ = ['build_batch_data_loader', 'build_train_loader', 'build_test_loader']
@@ -42,6 +43,9 @@ def get_isp_dataset_dicts(
     """
     Args:
         names (str or list[str]): dataset name or a list of dataset names.
+
+    Returns:
+        merged list of all dataset dicts.
     """
     if isinstance(names, str):
         names = [names]
@@ -51,15 +55,37 @@ def get_isp_dataset_dicts(
     for dataset_name, dicts in zip(names, dataset_dicts):
         assert len(dicts), "Dataset: {} is empty!".format(dataset_name)
 
+    # combine dataset dicts
     dataset_dicts = list(itertools.chain.from_iterable(dataset_dicts))
+
     return dataset_dicts
+
+def get_isp_dataset_sizes(
+    names
+):
+    """
+    Get the sizes of all datasets specified by names.
+
+    Args:
+        names (str or list[str]): dataset name or a list of dataset names.
+
+    Returns:
+        list of the sizes of all datasets specified by names.
+    """
+    if isinstance(names, str):
+        names = [names]
+    assert len(names), names
+
+    dataset_sizes = [len(DATASET_CATALOG.get(name)) for name in names]
+    
+    return dataset_sizes
 
 
 def build_train_loader(
-    names = None,
-    batch_size = 1,
-    transforms = None,
-    dataset = None,
+    names=None,
+    batch_size=1,
+    transforms=None,
+    dataset=None,
     sampler=None,
     num_workers=0,
     collate_fn=None
@@ -72,26 +98,31 @@ def build_train_loader(
         batch_size (int): total batch size, the batch size each GPU got is batch_size // num_gpus.
         transforms (torchvision.Transforms): transforms applied to dataset.
         dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
-        sampler (torchdata.sampler.Sampler): if you use map-style dataset, default is TrainingSampler. You should not provide this if you use iterable-style dataset.
+        sampler (str): if you use map-style dataset, default is TrainingSampler. You should not provide this if you use iterable-style dataset.
         num_worker (int): num_worker of the dataloader.
         collate_fn (callable): use trivial_collate_fn by default.
 
-    Note: Typically, if you want to use a dataset for a long time, you can
+    Note: Typically, if you commomly use a dataset, you can
     register it in data/datasets, so that it can be easily loaded just
-    given its registered name. But if you want to do some temporary
+    by its registered name. But if you want to do some temporary
     experiments on a dataset, you can implement it as data.Dataset and
-    manually load it.
+    explicitly provide it when calling this function.
     """
     if dataset is None:
         dataset_dicts = get_isp_dataset_dicts(names)
+        dataset_sizes = get_isp_dataset_sizes(names)
+        # TODO: show datasets information
         dataset = CommISPDataset(dataset_dicts, True, transforms)
     
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:
-        if sampler is None:
+        if sampler == "TrainSampler":
             sampler = TrainingSampler(len(dataset))
-        assert isinstance(sampler, torchdata.Sampler), f"Expect a Sampler but got {type(sampler)}"
+        elif sampler == "BalancingSampler":
+            sampler = BalancingSampler(len(dataset), dataset_sizes)
+        else:
+            raise NotImplementedError(f"sampler: {sampler} is not implemented.")
 
     return build_batch_data_loader(
         dataset=dataset,
