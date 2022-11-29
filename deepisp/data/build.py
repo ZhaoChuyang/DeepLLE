@@ -3,7 +3,7 @@ from typing import List, Optional
 import torch.utils.data as torchdata
 import itertools
 from .comm import ToIterableDataset, CommISPDataset
-from .samplers import TrainingSampler, BalancingSampler, InferenceSampler
+from .samplers import TrainingSampler, BalancedSampler, InferenceSampler
 from .catalog import DATASET_CATALOG
 import logging
 
@@ -98,7 +98,7 @@ def build_train_loader(
         batch_size (int): total batch size, the batch size each GPU got is batch_size // num_gpus.
         transforms (torchvision.Transforms): transforms applied to dataset.
         dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
-        sampler (str): if you use map-style dataset, default is TrainingSampler. You should not provide this if you use iterable-style dataset.
+        sampler (str): Specify this argument if you use map-style dataset, by default use the TrainingSampler. You should not provide this if you use iterable-style dataset.
         num_worker (int): num_worker of the dataloader.
         collate_fn (callable): use trivial_collate_fn by default.
 
@@ -118,9 +118,9 @@ def build_train_loader(
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:
         if sampler == "TrainSampler":
-            sampler = TrainingSampler(len(dataset))
-        elif sampler == "BalancingSampler":
-            sampler = BalancingSampler(len(dataset), dataset_sizes)
+            sampler = TrainingSampler(sum(dataset_sizes))
+        elif sampler == "BalancedSampler":
+            sampler = BalancedSampler(dataset_sizes)
         else:
             raise NotImplementedError(f"sampler: {sampler} is not implemented.")
 

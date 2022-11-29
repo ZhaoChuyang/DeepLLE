@@ -3,10 +3,11 @@
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["ve_lol_all"],
+            "names": ["ve_lol_all", "mbllen_noisy", "sice_all"],
             "_names": ["mbllen_noisy"],
             "batch_size": 16,
             "num_workers": 0,
+            "sampler": "BalancedSampler",
             "transforms": [
                 {
                     "name": "RandomCrop",

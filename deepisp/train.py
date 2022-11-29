@@ -60,7 +60,6 @@ class ISPTrainer(Trainer):
 
         # build dataloader
         dataloader = build_train_loader(names=names, batch_size=batch_size, num_workers=num_workers, sampler=sampler, transforms=transforms)
-        
         return dataloader
 
     def build_valid_loader(self, cfg_valid_factory):
