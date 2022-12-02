@@ -1,4 +1,5 @@
 # Created on Tue Oct 11 2022 by Chuyang Zhao
+from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Tuple
 import torch
 from torch import Tensor
@@ -7,7 +8,7 @@ from torch import nn
 from ..processing import pad_collate_images, remove_padding
 
 
-class BaseISPModel(nn.Module):
+class BaseISPModel(nn.Module, ABC):
     """
     Base class for all ISP models.
     """
@@ -46,6 +47,11 @@ class BaseISPModel(nn.Module):
     def _move_to_current_device(self, x):
         return x.to(self.device)
 
+    @abstractmethod
+    def losses(self, inputs: Tensor, targets: Tensor):
+        raise NotImplementedError
+
+    @abstractmethod
     def forward(self, batched_inputs: List[Dict[str, Tensor]]):
         """
         Args:

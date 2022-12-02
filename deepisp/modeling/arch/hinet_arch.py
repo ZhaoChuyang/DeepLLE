@@ -10,9 +10,14 @@ HINet: Half Instance Normalization Network for Image Restoration
   year={2021}
 }
 '''
-
+from typing import List, Dict, Tuple
 import torch
 import torch.nn as nn
+from torch import Tensor
+from .base import BaseISPModel
+from .. import processing
+from .build import MODEL_REGISTRY
+from ..losses import L1Loss, MS_SSIM, SSIM
 
 def conv3x3(in_chn, out_chn, bias=True):
     layer = nn.Conv2d(in_chn, out_chn, kernel_size=3, stride=1, padding=1, bias=bias)
@@ -43,10 +48,12 @@ class SAM(nn.Module):
         x1 = x1+x
         return x1, img
 
-class HINet(nn.Module):
 
-    def __init__(self, in_chn=3, wf=64, depth=5, relu_slope=0.2, hin_position_left=0, hin_position_right=4):
+@MODEL_REGISTRY.register()
+class HINet(BaseISPModel):
+    def __init__(self, in_chn=3, wf=64, depth=5, relu_slope=0.2, hin_position_left=0, hin_position_right=4, testing=False):
         super(HINet, self).__init__()
+        self.testing = testing
         self.depth = depth
         self.down_path_1 = nn.ModuleList()
         self.down_path_2 = nn.ModuleList()
@@ -76,10 +83,48 @@ class HINet(nn.Module):
 
         self.last = conv3x3(prev_channels, in_chn, bias=True)
 
-    def forward(self, x):
-        image = x
+        self.l1_loss = L1Loss()
+        self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
+        self.ssim_loss = SSIM(data_range = 1.0)
+
+    @property
+    def size_divisibility(self):
+        """
+        Some networks require the size of the input image to be divisible
+        by some factor, which is often used in encoder-decoder style networks.
+
+        If the network you implemented needs some size divisibility, you can
+        override this property, otherwise 1 will be returned which will turn
+        off this feature when padding images.
+        """
+        return 1
+
+    @torch.no_grad()
+    def metrics(self, inputs: Tensor, targets: Tensor):
+        output_dict = {}
+        return output_dict
+
+    def losses(self, inputs: Tensor, targets: Tensor):
+        out_1, out_2 = inputs
+        assert out_1.shape == targets.shape, "Shapes of out_1: {} and targets: {} do not match.".format(out_1.shape, targets.shape)
+        assert out_2.shape == targets.shape, "Shapes of out_2: {} and targets: {} do not match.".format(out_2.shape, targets.shape)
+        loss_dict = {}
+
+        loss_dict["l1_loss_1"] = self.l1_loss(out_1, targets)
+        loss_dict["l1_loss_2"] = self.l1_loss(out_2, targets)
+        # loss_dict["ms_ssim_loss"] = self.ms_ssim_loss(inputs, targets)
+        # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets)) * 0.2
+
+        return loss_dict
+
+    def forward(self, batched_inputs: List[Dict[str, Tensor]]):
+        if self.testing:
+            images, image_sizes = self.preprocess_test_images(batched_inputs)
+        else:
+            images, targets, image_sizes = self.preprocess_images(batched_inputs)
+
         #stage 1
-        x1 = self.conv_01(image)
+        x1 = self.conv_01(images)
         encs = []
         decs = []
         for i, down in enumerate(self.down_path_1):
@@ -93,9 +138,9 @@ class HINet(nn.Module):
             x1 = up(x1, self.skip_conv_1[i](encs[-i-1]))
             decs.append(x1)
 
-        sam_feature, out_1 = self.sam12(x1, image)
+        sam_feature, out_1 = self.sam12(x1, images)
         #stage 2
-        x2 = self.conv_02(image)
+        x2 = self.conv_02(images)
         x2 = self.cat12(torch.cat([x2, sam_feature], dim=1))
         blocks = []
         for i, down in enumerate(self.down_path_2):
@@ -109,8 +154,17 @@ class HINet(nn.Module):
             x2 = up(x2, self.skip_conv_2[i](blocks[-i-1]))
 
         out_2 = self.last(x2)
-        out_2 = out_2 + image
-        return [out_1, out_2]
+        out_2 = out_2 + images
+
+        if self.testing:
+            outputs = self.postprocess_images(out_2, image_sizes)
+            return outputs
+
+        outputs = [out_1, out_2]
+        loss_dict = self.losses(outputs, targets)
+        output_dict = self.metrics(outputs, targets)
+
+        return loss_dict, output_dict
 
     def get_input_chn(self, in_chn):
         return in_chn
@@ -122,6 +176,43 @@ class HINet(nn.Module):
                 nn.init.orthogonal_(m.weight, gain=gain)
                 if not m.bias is None:
                     nn.init.constant_(m.bias, 0)
+    
+    def preprocess_images(self, batched_inputs: List[Dict[str, Tensor]]):
+        images = [self._move_to_current_device(x['image']) for x in batched_inputs]
+        targets = [self._move_to_current_device(x['target']) for x in batched_inputs]
+
+        images, image_sizes = processing.pad_collate_images(images, self.size_divisibility)
+        targets, _ = processing.pad_collate_images(targets, self.size_divisibility)
+
+        # images = processing.normalize_to_neg_one_to_one(images)
+        # targets = processing.normalize_to_neg_one_to_one(targets)
+
+        return images, targets, image_sizes
+
+    def preprocess_test_images(self, batched_inputs: List[Dict[str, Tensor]]):
+        images = [self._move_to_current_device(x['image']) for x in batched_inputs]
+        images, image_sizes = processing.pad_collate_images(images, self.size_divisibility)
+
+        # images = processing.normalize_to_neg_one_to_one(images)
+
+        return images, image_sizes
+    
+    def postprocess_images(self, images: Tensor, image_sizes: List[Tuple[int, int]]):
+        """
+        Post process images returned by the model and then
+        remove padding from them.
+
+        Args:
+            images (Tensor): processed image tensor (b, c, h, w) returned by the model.
+            image_sizes (List[Tuple[int, int]]): list of tuple (h, w) that saves the
+                original size of images.
+
+        Returns:
+            output_images (List[Tensor]): List of images that is restorted to its original sizes.
+        """
+        # images = processing.unnormalize_to_zero_to_one(images)
+        images = processing.remove_padding(images, image_sizes)
+        return images
 
 
 class UNetConvBlock(nn.Module):

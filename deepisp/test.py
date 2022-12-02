@@ -1,6 +1,5 @@
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import argparse
-from distutils.command.build import build
 import os
 import torch
 from torch import nn
@@ -9,12 +8,11 @@ import json
 from typing import Dict, List
 import numpy as np
 import cv2
+import tqdm
 
 from .utils import init_config, setup_logger, mkdirs, check_path_exists, check_path_is_image
-from .engine.trainer import Trainer
 from .modeling import build_model
-from .data import build_transforms, build_train_loader, build_test_loader, CommISPDataset
-
+from .data import build_transforms, build_test_loader, CommISPDataset
 
 
 def build_test_model(cfg_model, device):
@@ -50,6 +48,34 @@ def read_images(img_dir):
     return dataset_dicts
 
 
+def load_data(img_dir: str, save_dir: str):
+    """
+    Load all images in img_dir recursively and create corresponding 
+    directories rooted in the save_dir if any image is found.
+
+    Args:
+        img_dir (str): root directoy path of the input images.
+        save_dir (str): root directory of the saved images.
+    """
+    dataset_dicts = []
+    for root, _, files in os.walk(img_dir):
+        for filename in files:
+            if check_path_is_image(filename):
+                relative_dir = root[len(img_dir):]
+                if relative_dir.startswith("/"): relative_dir = relative_dir[1:]
+                output_dir = os.path.join(save_dir, relative_dir)
+                
+                if not check_path_exists(output_dir):
+                    mkdirs(output_dir)
+                
+                input_path = os.path.join(root, filename)
+                output_path = os.path.join(output_dir, filename)
+                record = {'image_path': input_path, "save_path": output_path}
+                dataset_dicts.append(record)
+    
+    return dataset_dicts
+                
+
 # def process_dataset(dataset_dicts: List[Dict], transforms):
 #     """
 #     1. read image
@@ -62,11 +88,45 @@ def read_images(img_dir):
     
 #     return dataset_dicts
 
-def save_image(save_path: str, image: torch.Tensor):
+
+def post_process(image: np.array, maxrange: float=0.8, highpercent: int=95, lowpercent: int=5, hsvgamma: float=0.8):
     """
+    Post process procedure used in MBLLEN.
+
+    Args:
+        image (np.ndarray): numpy image, data range is in [0, 1].
+    """
+    gray_image = image[:, :, 0] * 0.299 + image[:, :, 1] * 0.587 + image[:, :, 1] * 0.114
+    percent_max = sum(sum(gray_image >= maxrange))/sum(sum(gray_image <= 1.0))
+    # print(percent_max)
+    max_value = np.percentile(gray_image[:], highpercent)
+    if percent_max < (100-highpercent)/100.:
+        scale = maxrange / max_value
+        image = image * scale
+        image = np.minimum(image, 1.0)
+
+    gray_image = image[:,:,0]*0.299 + image[:,:,1]*0.587 + image[:,:,1]*0.114
+    sub_value = np.percentile(gray_image[:], lowpercent)
+    image = (image - sub_value)*(1./(1-sub_value))
+
+    imgHSV = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    H, S, V = cv2.split(imgHSV)
+    S = np.power(S, hsvgamma)
+    imgHSV = cv2.merge([H, S, V])
+    image = cv2.cvtColor(imgHSV, cv2.COLOR_HSV2RGB)
+    image = np.minimum(image, 1.0)
+    return image
+
+
+def save_image(save_path: str, image: torch.Tensor, do_post_process: bool=False):
+    """
+    save image to the with specified path.
+    Note: the directory to save must exist.
     """
     image = image.cpu().numpy()
     image = np.transpose(image, [1, 2, 0])
+    if do_post_process:
+        image = post_process(image)
     image = np.clip(image * 255, 0, 255)
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     cv2.imwrite(save_path, image)
@@ -104,18 +164,19 @@ def main():
 
     transforms = build_transforms(cfg_test_factory["transforms"])
 
-    dataset_dicts = read_images(cfg_test_factory["img_dir"])
+    # dataset_dicts = read_images(cfg_test_factory["img_dir"])
+    dataset_dicts = load_data(cfg_test_factory["img_dir"], config["test"]["save_dir"])
+
     dataset = CommISPDataset(dataset_dicts, False, transforms)
     dataloader = build_test_loader(dataset=dataset, batch_size=cfg_test_factory["batch_size"], num_workers=0)
     # <<< Build Test Data Loader <<<
 
     with torch.no_grad():
-        for data in dataloader:
+        for data in tqdm.tqdm(dataloader, total=len(dataloader)):
             outputs = model(data)
-            filenames = [r["image_path"].split("/")[-1] for r in data]
-            
-            for filename, output in zip(filenames, outputs):
-                save_path = os.path.join(config["test"]["save_dir"], filename)
+
+            for output, record in zip(outputs, data):
+                save_path = record["save_path"]
                 save_image(save_path, output)
 
 

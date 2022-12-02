@@ -24,10 +24,8 @@
     },
 
     "model": {
-        "name": "UNetBaseline",
-        "args": {
-            "bilinear": true
-        }
+        "name": "",
+        "args": {}
     },
 
     "trainer": {

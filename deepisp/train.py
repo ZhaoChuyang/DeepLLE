@@ -7,7 +7,7 @@ from torch import nn
 import logging
 import json
 
-from .utils import init_config, setup_logger, mkdirs
+from .utils import init_config, setup_logger, mkdirs, get_ip_address
 from .engine.trainer import Trainer
 from .modeling import build_model
 from .data import build_transforms, build_train_loader, build_test_loader
@@ -112,6 +112,14 @@ def main():
 
     logger.info("Configuration:")
     logger.info(json.dumps(config, indent=4))
+
+    if config["trainer"]["tensorboard"]:
+        ip_address = get_ip_address()
+        logger.info(
+            f"Tensorboard is enabled, you can start tensorboard by:\n"
+            f"\"tensorboard --port=8080 --logdir={config['trainer']['log_dir']} --port=8080\".\n"
+            f"You can visit http://{ip_address}:8080/ in your local broswer to watch the tensorboard."
+        )
 
     if torch.cuda.is_available():
         device = torch.device('cuda')

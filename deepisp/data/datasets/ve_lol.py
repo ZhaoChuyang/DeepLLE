@@ -4,7 +4,7 @@ from ...utils import check_path_is_image, check_path_exists
 from ..catalog import DATASET_CATALOG
 
 
-def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool = True):
+def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool = False):
     """
     Args:
         root (str): path to the root directory of VE-LOL. Refer to `deepisp/data/datasets/README.md` for the file structure inside root.

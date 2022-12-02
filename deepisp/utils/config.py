@@ -58,14 +58,14 @@ def init_config(args):
     config["trainer"]["save_dir"] = os.path.abspath(config["trainer"]["save_dir"])
     config["trainer"]["ckp_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "checkpoints")
     config["trainer"]["log_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "log")
-    
+
     if config["trainer"]["resume_checkpoint"] and not os.path.isabs(config["trainer"]["resume_checkpoint"]):
         config["trainer"]["resume_checkpoint"] = os.path.join(config["trainer"]["ckp_dir"], config["trainer"]["resume_checkpoint"])
     
     if config["test"]["resume_checkpoint"] and not os.path.isabs(config["test"]["resume_checkpoint"]):
         config["test"]["resume_checkpoint"] = os.path.join(config["trainer"]["ckp_dir"], config["test"]["resume_checkpoint"])
     
-    if config["test"]["save_dir"] and not os.path.isabs(config["test"]["save_dir"]):
+    if not os.path.isabs(config["test"]["save_dir"]):
         config["test"]["save_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "test", config["test"]["save_dir"])
 
     return config

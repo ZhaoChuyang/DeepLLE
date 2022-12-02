@@ -62,6 +62,7 @@ class DoubleConv(nn.Module):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
+        
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
             # nn.BatchNorm2d(mid_channels),
@@ -161,7 +162,7 @@ UNet Network
 """
 
 class UNet(nn.Module):
-    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, scales: int = 16, base_dim: int = 64):
+    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, scales: int = 16, base_dim: int = 64, depth: int = 2):
         """
         Simple UNet implementation.
 
@@ -180,24 +181,30 @@ class UNet(nn.Module):
         assert self.scales in [4, 16]
         
         self.inc = DoubleConv(n_channels, base_dim)
-        if self.scales == 4:
-            self.down1 = Down(base_dim, base_dim * 2)
-            factor = 2 if bilinear else 1
-            self.down2 = Down(base_dim * 2, base_dim * 4 // factor)
-            self.up3 = Up(base_dim * 4, base_dim * 2 // factor, bilinear)
-            self.up4 = Up(base_dim * 2, base_dim, bilinear)
 
-        elif self.scales == 16:
-            self.down1 = Down(base_dim, base_dim * 2)
-            self.down2 = Down(base_dim * 2, base_dim * 4)
-            self.down3 = Down(base_dim * 4, base_dim * 8)
-            factor = 2 if bilinear else 1
-            self.down4 = Down(base_dim * 8, base_dim * 16 // factor)
+        self.down_layers = nn.ModuleList()
+        self.up_layers = nn.ModuleList()
+        self.mid_layers = nn.ModuleList()
         
-            self.up1 = Up(base_dim * 16, base_dim * 8 // factor, bilinear)
-            self.up2 = Up(base_dim * 8, base_dim * 4 // factor, bilinear)
-            self.up3 = Up(base_dim * 4, base_dim * 2 // factor, bilinear)
-            self.up4 = Up(base_dim * 2, base_dim, bilinear)
+        factor = 2 if bilinear else 1
+        prev_dim = base_dim
+
+        # 1,2..depth (num: depth)
+        for i in range(1, depth+1):
+            if i == depth:
+                self.down_layers.append(Down(prev_dim, base_dim * (2**i) // factor))
+            else:
+                self.down_layers.append(Down(prev_dim, base_dim * (2**i)))
+            prev_dim = base_dim * (2**i)
+
+        # depth-1..1,0 (num: depth)
+        for i in range(depth-1, -1, -1):
+            if i == 0:
+                self.up_layers.append(Up(prev_dim, base_dim * (2**i), bilinear))
+            else:
+                self.up_layers.append(Up(prev_dim, base_dim * (2**i) // factor, bilinear))
+            prev_dim = base_dim * (2**i)
+
 
         self.outc = OutConv(base_dim, n_classes)
         # self.final = OutConv(n_classes * 2, n_classes)
@@ -221,26 +228,18 @@ class UNet(nn.Module):
             outputs (Tensor): outputs is of (B, C, H, W), C equals self.n_classes,
                 B, H and W are the same as input x.
         """
-        inp = x
-        x1 = self.inc(x)
-        if self.scales == 16:
-            x2 = self.down1(x1)
-            x3 = self.down2(x2)
-            x4 = self.down3(x3)
-            x5 = self.down4(x4)
-            x = self.up1(x5, x4)
-            x = self.up2(x, x3)
-            x = self.up3(x, x2)
-            x = self.up4(x, x1)
-        
-        elif self.scales == 4:
-            x2 = self.down1(x1)
-            x3 = self.down2(x2)
-            x = self.up3(x3, x2)
-            x = self.up4(x, x1)
+        x = self.inc(x)
+        stack = []
+
+        for down in self.down_layers:
+            stack.append(x)
+            x = down(x)
+            
+        for up in self.up_layers:
+            x_prev = stack.pop()
+            x = up(x, x_prev)
         
         logits = self.outc(x)
-        # logits = self.final(torch.cat([inp, out], dim=1))
 
         # TODO: add activation function to
         # constrain the outputs to valid range

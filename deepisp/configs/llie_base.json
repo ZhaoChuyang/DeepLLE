@@ -3,10 +3,10 @@
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["ve_lol_all"],
-            "_names": ["mbllen_noisy"],
-            "batch_size": 16,
-            "num_workers": 0,
+            "_names": ["mbllen_noisy", "ve_lol_real_train", "lol_train"],
+            "names": ["mbllen_noisy"],
+            "batch_size": 32,
+            "num_workers": 2,
             "transforms": [
                 {
                     "name": "RandomCrop",
@@ -39,7 +39,7 @@
             ]
         },
         "test": {
-            "img_dir": "/data/chuyang/datasets/test/Surface",
+            "img_dir": "/home/chuyang/Workspace/datasets/test",
             "batch_size": 2,
             "num_workers": 0,
             "transforms": [
@@ -54,7 +54,9 @@
     "model": {
         "name": "UNetBaseline",
         "args": {
-            "bilinear": true
+            "bilinear": true,
+            "depth": 4,
+            "base_dim": 16
         }
     },
 
@@ -92,6 +94,6 @@
 
    "test": {
         "resume_checkpoint": "model_best.pt",
-        "save_dir": "Surface"
+        "save_dir": ""
    }
 }

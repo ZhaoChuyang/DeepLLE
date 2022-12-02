@@ -35,6 +35,8 @@ class Compose:
 
 class Resize:
     def __init__(self, size):
+        if isinstance(size, int):
+            size = (size, size)
         self.size = size
 
     def __call__(self, image, target = None):

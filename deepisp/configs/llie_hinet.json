@@ -1,11 +1,11 @@
 {
-    "name": "base_isp_exp_1",
+    "name": "hinet_isp_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_train", "sice_all"],
-            "_names": ["mbllen_noisy", "ve_lol_real_train"],
-            "batch_size": 64,
+            "_names": ["mbllen_noisy", "ve_lol_real_train", "lol_train"],
+            "names": ["mbllen_noisy"],
+            "batch_size": 16,
             "num_workers": 0,
             "transforms": [
                 {
@@ -33,6 +33,12 @@
             "num_workers": 0,
             "transforms": [
                 {
+                    "name": "RandomCrop",
+                    "args": {
+                        "size": 256
+                    }
+                },
+                {
                     "name": "ToTensor",
                     "args": {}
                 }
@@ -40,9 +46,15 @@
         },
         "test": {
             "img_dir": "/home/chuyang/Workspace/datasets/test",
-            "batch_size": 1,
+            "batch_size": 2,
             "num_workers": 0,
             "transforms": [
+                {
+                    "name": "Resize",
+                    "args": {
+                        "size": 1024
+                    }
+                },
                 {
                     "name": "ToTensor",
                     "args": {}
@@ -52,9 +64,8 @@
     },
 
     "model": {
-        "name": "UNetBaseline",
+        "name": "HINet",
         "args": {
-            "bilinear": true
         }
     },
 
@@ -70,20 +81,20 @@
         "max_eval_iters": -1,
         "tensorboard": true,
         "resume_checkpoint": "model_best.pt",
-        "use_grad_clip": false
+        "use_grad_clip": true
    },
 
    "solver": {
         "optimizer": {
             "name": "Adam",
             "args": {
-                "lr": 3e-3
+                "lr": 3e-4
             }
         },
         "lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [5000, 10000, 20000, 100000],
+                "milestones": [4000, 10000, 30000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }

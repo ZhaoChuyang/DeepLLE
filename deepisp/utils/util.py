@@ -4,6 +4,7 @@ import json
 import time
 import glob
 import pathlib
+import socket
 
 
 # If you don't set the seed manually, will use current timestamp
@@ -77,3 +78,12 @@ def set_seed(seed: int):
 def get_seed():
     global _seed
     return _seed
+
+
+def get_ip_address():
+    """
+    Get the ip address of current host.
+    """
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    return ip_address

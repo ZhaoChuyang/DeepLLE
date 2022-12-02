@@ -1,11 +1,10 @@
 {
-    "name": "base_isp_exp_1",
+    "name": "base_isp_exp_mbllen_deconv",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_train", "sice_all"],
-            "_names": ["mbllen_noisy", "ve_lol_real_train"],
-            "batch_size": 64,
+            "names": ["mbllen_noisy"],
+            "batch_size": 32,
             "num_workers": 0,
             "transforms": [
                 {
@@ -40,7 +39,7 @@
         },
         "test": {
             "img_dir": "/home/chuyang/Workspace/datasets/test",
-            "batch_size": 1,
+            "batch_size": 2,
             "num_workers": 0,
             "transforms": [
                 {
@@ -54,7 +53,9 @@
     "model": {
         "name": "UNetBaseline",
         "args": {
-            "bilinear": true
+            "bilinear": false,
+            "depth": 4,
+            "base_dim": 16
         }
     },
 
@@ -69,7 +70,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
    },
 
@@ -83,7 +84,7 @@
         "lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [5000, 10000, 20000, 100000],
+                "milestones": [4000, 10000, 30000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }
