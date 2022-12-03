@@ -87,10 +87,9 @@ class ISPTrainer(Trainer):
     def build_lr_scheduler(self, cfg_solver, optimizer):
         cfg_lr_scheduler = cfg_solver["lr_scheduler"]
         
-        if cfg_lr_scheduler is not None:
+        lr_scheduler = None
+        if cfg_lr_scheduler:
             lr_scheduler = build_lr_scheduler(optimizer, cfg_lr_scheduler["name"], **cfg_lr_scheduler["args"])
-        else:
-            lr_scheduler = None
         
         return lr_scheduler
 
@@ -117,8 +116,8 @@ def main():
         ip_address = get_ip_address()
         logger.info(
             f"Tensorboard is enabled, you can start tensorboard by:\n"
-            f"\"tensorboard --port=8080 --logdir={config['trainer']['log_dir']} --port=8080\".\n"
-            f"You can visit http://{ip_address}:8080/ in your local broswer to watch the tensorboard."
+            f"\"tensorboard --logdir={config['trainer']['log_dir']} --port=8080 --host=0.0.0.0\".\n"
+            f"You can visit http://{ip_address}:8080/ in your local broswer to watch the tensorboard.\n"
         )
 
     if torch.cuda.is_available():

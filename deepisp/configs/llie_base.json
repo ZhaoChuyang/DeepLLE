@@ -3,10 +3,9 @@
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "_names": ["mbllen_noisy", "ve_lol_real_train", "lol_train"],
-            "names": ["mbllen_noisy"],
+            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_all", "sice_all"],
             "batch_size": 32,
-            "num_workers": 2,
+            "num_workers": 0,
             "transforms": [
                 {
                     "name": "RandomCrop",
@@ -64,6 +63,7 @@
         "epochs": 100,
         "iters_per_epoch": -1,
         "saved_period": 500,
+        "save_last": 3,
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
@@ -71,7 +71,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "model_best.pt",
+        "resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
    },
 

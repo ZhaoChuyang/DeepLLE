@@ -1,5 +1,6 @@
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import os
+import glob
 import time
 import logging
 from typing import Dict
@@ -30,10 +31,11 @@ class BaseTrainer:
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
         self.saved_period = cfg_trainer['saved_period']
+        self.save_last = cfg_trainer['save_last']
         self.eval_period = cfg_trainer['eval_period']
         self.log_period = cfg_trainer['log_period']
-        self.monitor = cfg_trainer.get('monitor', 'off')
-        self.max_eval_iters = cfg_trainer.get("max_eval_iters", -1)
+        self.monitor = cfg_trainer['monitor']
+        self.max_eval_iters = cfg_trainer["max_eval_iters"]
 
         self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
 
@@ -69,8 +71,8 @@ class BaseTrainer:
         self.train_metrics = MetricTracker(writer=self.tb_writer)
         self.valid_metrics = MetricTracker(writer=self.tb_writer)
 
-        if cfg_trainer.get("resume_checkpoint", None):
-            self._resume_checkpoint(cfg_trainer.get("resume_checkpoint"))
+        if cfg_trainer["resume_checkpoint"]:
+            self._resume_checkpoint(cfg_trainer["resume_checkpoint"])
 
     @property
     def epoch(self):
@@ -273,9 +275,15 @@ class Trainer(BaseTrainer):
         # save the checkpoint periodically.
         if self.iter % self.saved_period == 0:
             self.save_checkpoint()
+            if self.save_last != -1:
+                self.clear_checkpoints()
         
 
     def save_checkpoint(self):
+        """
+        Save the current model checkpoint to "model_{iter_num}.pt" and the best model
+        checkpoint to "model_best.pt".
+        """
         result = self.train_metrics.result()
         if self.do_validation:
             valid_result = self.valid_metrics.result()
@@ -306,6 +314,23 @@ class Trainer(BaseTrainer):
 
         filename = "model_{}.pt".format(self.iter)
         self._save_checkpoint(filename, save_best=best)
+
+    def clear_checkpoints(self):
+        """
+        Remove earlier checkpoints and keep exactly `self.save_last` checkpoints
+        if `self.save_last` is not set to -1.
+        """
+        checkpoint_paths = []
+        for path in glob.glob(f"{self.checkpoint_dir}/*.pt"):
+            if path.split("/")[-1] == "model_best.pt": continue
+            checkpoint_paths.append(path)
+        
+        checkpoint_paths = sorted(checkpoint_paths, key=lambda x: os.path.getmtime(x))
+        assert self.save_last > 0 and isinstance(self.save_last, int)
+        checkpoints_to_clear = checkpoint_paths[:-self.save_last]
+        for path in checkpoints_to_clear:
+            # print(path)
+            os.remove(path)
 
     @torch.no_grad()
     def do_eval(self):
@@ -356,5 +381,3 @@ class Trainer(BaseTrainer):
         It is not implemented by default.
         """
         raise NotImplementedError("Please implement `build_evaluator()` in subclass if you want to do test by the trainer.")
-
-    

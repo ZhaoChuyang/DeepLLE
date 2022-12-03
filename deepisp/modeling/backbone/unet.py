@@ -11,45 +11,6 @@ __all__ = ["UNet"]
 Building Blocks of UNet
 """
 
-
-# class DoubleConv(nn.Module):
-#     def __init__(self, in_size, out_size, mid_size=None, relu_slope=0.2, use_HIN=True):
-#         super(DoubleConv, self).__init__()
-#         if mid_size is None:
-#             mid_size = out_size
-#         self.identity = nn.Conv2d(in_size, out_size, 1, 1, 0)
-
-#         self.conv_1 = nn.Conv2d(in_size, mid_size, kernel_size=3, padding=1, bias=False)
-#         self.relu_1 = nn.LeakyReLU(relu_slope, inplace=False)
-#         self.conv_2 = nn.Conv2d(mid_size, out_size, kernel_size=3, padding=1, bias=False)
-#         self.relu_2 = nn.LeakyReLU(relu_slope, inplace=False)
-
-#         if use_HIN:
-#             # self.norm = nn.GroupNorm(num_groups=1, num_channels=mid_size//2, affine=True)
-#             self.norm = nn.InstanceNorm2d(mid_size//2, affine=True)
-#             # self.norm = nn.GroupNorm(num_groups=1, num_channels=mid_size, affine=True)
-
-#         self.use_HIN = use_HIN
-
-
-#     def forward(self, x):
-#         out = self.conv_1(x)
-
-#         if self.use_HIN:
-#             out_1, out_2 = torch.chunk(out, 2, dim=1)
-#             out = torch.cat([self.norm(out_1), out_2], dim=1)
-#             # out = self.norm(out) + out
-#             # out = torch.cat([self.norm(out), out], dim=1)
-#             # out = self.norm(out)
-        
-#         out = self.relu_1(out)
-#         out = self.conv_2(out)
-#         out = self.relu_2(out)
-
-#         out += self.identity(x)
-#         return out
-
-
 class DoubleConv(nn.Module):
     """
     (convolution => [BN] => ReLU) * 2
@@ -162,7 +123,7 @@ UNet Network
 """
 
 class UNet(nn.Module):
-    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, scales: int = 16, base_dim: int = 64, depth: int = 2):
+    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, base_dim: int = 64, depth: int = 4):
         """
         Simple UNet implementation.
 
@@ -176,9 +137,6 @@ class UNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
-        self.scales = scales
-        
-        assert self.scales in [4, 16]
         
         self.inc = DoubleConv(n_channels, base_dim)
 

@@ -140,16 +140,14 @@ def main():
 
     config = init_config(args)
 
-    # create the log dir and checkpoints saved dir if not exist
-    mkdirs(config["trainer"]["ckp_dir"])
-    mkdirs(config["trainer"]["log_dir"])
+    # create the test output directory if it does not exist.
     mkdirs(config["test"]["save_dir"])
 
-    setup_logger(config["trainer"]["log_dir"])
-    logger = logging.getLogger('train')
+    # setup_logger(config["trainer"]["log_dir"])
+    # logger = logging.getLogger('train')
 
-    logger.info("Configuration:")
-    logger.info(json.dumps(config, indent=4))
+    print("Configuration:")
+    print(json.dumps(config, indent=4))
 
     if torch.cuda.is_available():
         device = torch.device('cuda')

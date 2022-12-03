@@ -228,7 +228,7 @@ def ms_ssim(
 class SSIM(torch.nn.Module):
     def __init__(
         self,
-        data_range=255,
+        data_range=1.0,
         size_average=True,
         win_size=11,
         win_sigma=1.5,
@@ -271,7 +271,7 @@ class SSIM(torch.nn.Module):
 class MS_SSIM(torch.nn.Module):
     def __init__(
         self,
-        data_range=255,
+        data_range=1.0,
         size_average=True,
         win_size=11,
         win_sigma=1.5,

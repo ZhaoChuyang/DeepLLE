@@ -34,6 +34,7 @@
         "saved_period": 500,
         "eval_period": 100,
         "log_period": 50,
+        "save_last": -1,
         "save_dir": "../event_logs",
         "verbosity": 2,
         "monitor": "min total_loss",

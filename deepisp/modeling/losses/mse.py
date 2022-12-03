@@ -3,7 +3,6 @@ from torch import nn
 from torch.nn import functional as F
 
 
-
 class L1Loss(nn.Module):
     def __init__(self, reduction: str='mean'):
         """

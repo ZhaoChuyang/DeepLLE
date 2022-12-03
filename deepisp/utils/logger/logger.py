@@ -9,7 +9,7 @@ from .. import check_path_exists, read_json, mkdirs
 __all__ = ["setup_logger"]
 
 
-def setup_logger(save_dir, log_config="src/utils/logger/logger_config.json", default_level=logging.INFO):
+def setup_logger(save_dir, log_config="deepisp/utils/logger/logger_config.json", default_level=logging.INFO):
     """Setup logger with configuration
 
     Create two loggers, one for stdout logging, one for file logging.

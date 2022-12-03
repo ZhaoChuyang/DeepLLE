@@ -13,14 +13,14 @@ from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss
 class UNetBaseline(BaseISPModel):
     def __init__(self, bilinear: bool = False, depth=2, base_dim=32, testing: bool = False):
         super().__init__(testing=testing)
-        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, scales=4, base_dim=base_dim, depth=depth)
+        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth)
 
         self.activation = nn.Tanh()
         
         self.l1_loss = L1Loss()
         self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
         self.ssim_loss = SSIM(data_range = 1.0)
-        self.perceptual_loss = VGGPerceptualLoss(False)
+        # self.perceptual_loss = VGGPerceptualLoss(False)
 
 
     def forward(self, batched_inputs: List[Dict[str, Tensor]]):
@@ -64,7 +64,7 @@ class UNetBaseline(BaseISPModel):
         loss_dict = {}
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
-        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets)
+        # loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
         # loss_dict["ms_ssim_loss"] = self.ms_ssim_loss(inputs, targets)
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets)) * 0.2
 

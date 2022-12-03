@@ -1,13 +1,12 @@
 {
-    "name": "deep_isp_exp",
+    "name": "deep_idaug_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_all", "sice_all"],
+            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_train", "sice_all"],
             "_names": ["mbllen_noisy", "ve_lol_real_train"],
             "batch_size": 32,
             "num_workers": 0,
-            "_sampler": "BalancedSampler",
             "transforms": [
                 {
                     "name": "RandomCrop",

@@ -5,7 +5,7 @@
         "train": {
             "_names": ["mbllen_noisy", "ve_lol_real_train", "lol_train"],
             "names": ["mbllen_noisy"],
-            "batch_size": 16,
+            "batch_size": 8,
             "num_workers": 0,
             "transforms": [
                 {
@@ -74,7 +74,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "model_best.pt",
+        "resume_checkpoint": "model_best.pt",
         "use_grad_clip": true
    },
 

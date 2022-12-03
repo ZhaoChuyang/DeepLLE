@@ -71,11 +71,11 @@ class BalancedSampler(Sampler):
             for idx, dataset_size in enumerate(self.dataset_sizes):
                 times = self.buffer_size // dataset_size
                 remain = self.buffer_size % dataset_size
-                indices.extend(times * [i % dataset_size for i in range(base_num + counters[idx], base_num + counters[idx] + dataset_size)])
-                indices.extend([i % dataset_size for i in range(base_num + counters[idx], base_num + counters[idx] + remain)])
+                indices.extend(times * [i % dataset_size + base_num for i in range(base_num + counters[idx], base_num + counters[idx] + dataset_size)])
+                indices.extend([i % dataset_size + base_num for i in range(base_num + counters[idx], base_num + counters[idx] + remain)])
                 counters[idx] = counters[idx] + remain
                 base_num += dataset_size
-            
+
             if self._shuffle:
                 random.shuffle(indices)
 
@@ -131,3 +131,13 @@ class InferenceSampler(Sampler):
 
     def __len__(self):
         return self._size
+
+
+if __name__ == '__main__':
+    """
+    Test BalancedSampler, run with:
+        python -m deepisp.data.samplers.train_sampler
+    """
+    sampler = BalancedSampler([3, 4, 5], buffer_size=10)
+    from IPython import embed
+    embed()

@@ -61,7 +61,7 @@ class MBLLEN_Arch(BaseISPModel):
         loss_dict = {}
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
-        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
+        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets)
         # loss_dict["ms_ssim_loss"] = self.ms_ssim_loss(inputs, targets)
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets)) * 0.2
 
