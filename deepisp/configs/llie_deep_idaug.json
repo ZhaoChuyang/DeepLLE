@@ -4,9 +4,9 @@
     "data_factory": {
         "train": {
             "names": ["mbllen_noisy", "ve_lol_real_train", "lol_train", "sice_all"],
-            "_names": ["mbllen_noisy", "ve_lol_real_train"],
             "batch_size": 32,
-            "num_workers": 0,
+            "num_workers": 4,
+            "sampler": "BalancedSampler",
             "transforms": [
                 {
                     "name": "RandomCrop",
@@ -18,6 +18,12 @@
                     "name": "RandomHorizontalFlip",
                     "args": {
                         "flip_prob": 0.5
+                    }
+                },
+                {
+                    "name": "IdentityAug",
+                    "args": {
+                        "p": 0.3
                     }
                 },
                 {
@@ -64,7 +70,7 @@
         "epochs": 100,
         "iters_per_epoch": -1,
         "saved_period": 500,
-        "save_last": -1,
+        "save_last": 3,
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
@@ -86,7 +92,7 @@
         "lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [5000, 10000, 20000, 100000],
+                "milestones": [5000, 30000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }
@@ -95,6 +101,7 @@
 
    "test": {
         "resume_checkpoint": "model_best.pt",
-        "save_dir": ""
+        "save_dir": "",
+        "save_pair": true
    }
 }

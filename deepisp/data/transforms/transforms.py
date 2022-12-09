@@ -1,9 +1,9 @@
 # Created on Thu Oct 13 2022 by Chuyang Zhao
 # modified from: https://github.com/pytorch/vision/blob/main/torchvision/transforms/transforms.py
 import random
-
 import numpy as np
 import torch
+from abc import ABC, abstractmethod
 from torchvision import transforms as T
 from torchvision.transforms import functional as F
 
@@ -18,7 +18,17 @@ def pad_if_smaller(img, size, fill=0):
     return img
 
 
-class Compose:
+
+class Transform(ABC):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def __call__(self, image, target = None):
+        pass
+
+
+class Compose(Transform):
     def __init__(self, transforms):
         self.transforms = transforms
 
@@ -33,7 +43,7 @@ class Compose:
             return image, target
 
 
-class Resize:
+class Resize(Transform):
     def __init__(self, size):
         if isinstance(size, int):
             size = (size, size)
@@ -48,7 +58,7 @@ class Resize:
         return image, target
 
 
-class RandomResize:
+class RandomResize(Transform):
     def __init__(self, min_size, max_size=None):
         self.min_size = min_size
         if max_size is None:
@@ -62,7 +72,7 @@ class RandomResize:
         return image, target
 
 
-class RandomHorizontalFlip:
+class RandomHorizontalFlip(Transform):
     def __init__(self, flip_prob):
         self.flip_prob = flip_prob
 
@@ -73,7 +83,19 @@ class RandomHorizontalFlip:
         return image, target
 
 
-class RandomCrop:
+
+class RandomVerticalFlip(Transform):
+    def __init__(self, flip_prob):
+        self.flip_prob = flip_prob
+
+    def __call__(self, image, target):
+        if random.random() < self.flip_prob:
+            image = F.vflip(image)
+            target = F.vflip(target)
+        return image, target
+
+
+class RandomCrop(Transform):
     def __init__(self, size):
         """
         Args:
@@ -83,18 +105,18 @@ class RandomCrop:
 
     def __call__(self, image, target = None):
         image = pad_if_smaller(image, self.size)
-        if target:
-            target = pad_if_smaller(target, self.size)
         crop_params = T.RandomCrop.get_params(image, (self.size, self.size))
         image = F.crop(image, *crop_params)
-        if target:
-            target = F.crop(target, *crop_params)
-        if target:
-            return image, target
-        return image
+        if not target:
+            return image
+
+        target = pad_if_smaller(target, self.size)
+        target = F.crop(target, *crop_params)
+        return image, target
 
 
-class CenterCrop:
+
+class CenterCrop(Transform):
     def __init__(self, size):
         self.size = size
 
@@ -104,14 +126,14 @@ class CenterCrop:
         return image, target
 
 
-class PILToTensor:
+class PILToTensor(Transform):
     def __call__(self, image, target):
         image = F.pil_to_tensor(image)
         target = F.pil_to_tensor(target)
         return image, target
 
 
-class ConvertImageDtype:
+class ConvertImageDtype(Transform):
     def __init__(self, dtype):
         self.dtype = dtype
 
@@ -121,7 +143,7 @@ class ConvertImageDtype:
         return image, target
 
 
-class Normalize:
+class Normalize(Transform):
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
@@ -132,7 +154,7 @@ class Normalize:
         return image, target
 
 
-class ToTensor:
+class ToTensor(Transform):
     def __init__(self):
         pass
 
@@ -142,4 +164,36 @@ class ToTensor:
             return image
         
         target = F.to_tensor(target)
+        return image, target
+
+
+class RandomRightRotation(Transform):
+    def __init__(self, p: float):
+        self.p = p
+    
+    def __call__(self, image: torch.Tensor, target: torch.Tensor = None):
+        # don't do augmentation in inference mode
+        if target is None:
+            return image
+        
+        if random.random() < self.p:
+            rot_code = random.randint(1, 3)
+            degree = rot_code * 90
+            image = F.rotate(image, degree)
+            target = F.rotate(target, degree)
+        
+        return image, target
+
+
+class IdentityAug(Transform):
+    def __init__(self, p):
+        self.p = p
+
+    def __call__(self, image, target = None):
+        if target is None:
+            return image
+        
+        if random.random() < self.p:
+            image = target
+        
         return image, target

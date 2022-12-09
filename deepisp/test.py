@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import logging
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 import numpy as np
 import cv2
 import tqdm
@@ -114,14 +114,18 @@ def post_process(image: np.array, maxrange: float=0.8, highpercent: int=95, lowp
     S = np.power(S, hsvgamma)
     imgHSV = cv2.merge([H, S, V])
     image = cv2.cvtColor(imgHSV, cv2.COLOR_HSV2RGB)
-    image = np.minimum(image, 1.0)
+    image = np.clip(image, 0.0, 1.0)
     return image
 
 
-def save_image(save_path: str, image: torch.Tensor, do_post_process: bool=False):
+def save_image(save_path: str, image: torch.Tensor, do_post_process: bool=False, input_image: Optional[torch.Tensor] = None):
     """
-    save image to the with specified path.
-    Note: the directory to save must exist.
+    Save image to the specified path. If input image is provided, construct image pair
+    by concatenateing [input_image, image] horizontally, note these two images must have
+    the same height. 
+    
+    Note: The directory to save must exist and the data range of the image tensor must be
+    in [0, 1].
     """
     image = image.cpu().numpy()
     image = np.transpose(image, [1, 2, 0])
@@ -129,6 +133,15 @@ def save_image(save_path: str, image: torch.Tensor, do_post_process: bool=False)
         image = post_process(image)
     image = np.clip(image * 255, 0, 255)
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+    # construct image pair for comparison
+    if input_image is not None:
+        input_image = input_image.cpu().numpy()
+        input_image = np.transpose(input_image, [1, 2, 0])
+        input_image = np.clip(input_image * 255, 0, 255)
+        input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2BGR)
+        image = cv2.hconcat([input_image, image])
+
     cv2.imwrite(save_path, image)
 
 
@@ -175,7 +188,10 @@ def main():
 
             for output, record in zip(outputs, data):
                 save_path = record["save_path"]
-                save_image(save_path, output)
+                input_image = None
+                if config["test"]["save_pair"]:
+                    input_image = record["image"]
+                save_image(save_path, output, input_image=input_image)
 
 
 if __name__ == '__main__':

@@ -1,13 +1,13 @@
 {
-    "name": "deep_isp_exp",
+    "name": "deep_re_isp_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_all", "sice_all"],
-            "_names": ["mbllen_noisy", "ve_lol_real_train"],
-            "batch_size": 64,
-            "num_workers": 0,
-            "_sampler": "BalancedSampler",
+            "names": ["ve_lol_real_train", "lol_all", "sice_all"],
+            "_names": ["mbllen_noisy"],
+            "batch_size": 16,
+            "num_workers": 2,
+            "sampler": "BalancedSampler",
             "transforms": [
                 {
                     "name": "RandomCrop",
@@ -56,7 +56,7 @@
         "name": "UNetBaseline",
         "args": {
             "bilinear": true,
-            "depth": 2,
+            "depth": 4,
             "base_dim": 32
         }
     },
@@ -65,7 +65,7 @@
         "epochs": 100,
         "iters_per_epoch": -1,
         "saved_period": 500,
-        "save_last": -1,
+        "save_last": 3,
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
@@ -95,7 +95,8 @@
    },
 
    "test": {
-        "resume_checkpoint": "model_1000.pt",
-        "save_dir": ""
+        "resume_checkpoint": "model_best.pt",
+        "save_dir": "",
+        "save_pair": true
    }
 }

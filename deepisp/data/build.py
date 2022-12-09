@@ -117,7 +117,7 @@ def build_train_loader(
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:
-        if sampler == "TrainSampler":
+        if sampler == "TrainingSampler":
             sampler = TrainingSampler(sum(dataset_sizes))
         elif sampler == "BalancedSampler":
             sampler = BalancedSampler(dataset_sizes)

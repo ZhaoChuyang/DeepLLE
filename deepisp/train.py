@@ -116,7 +116,7 @@ def main():
         ip_address = get_ip_address()
         logger.info(
             f"Tensorboard is enabled, you can start tensorboard by:\n"
-            f"\"tensorboard --logdir={config['trainer']['log_dir']} --port=8080 --host=0.0.0.0\".\n"
+            f"tensorboard --logdir={config['trainer']['log_dir']} --port=8080 --host=0.0.0.0\n"
             f"You can visit http://{ip_address}:8080/ in your local broswer to watch the tensorboard.\n"
         )
 

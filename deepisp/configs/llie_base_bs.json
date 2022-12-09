@@ -1,13 +1,12 @@
 {
-    "name": "deep_isp_exp",
+    "name": "base_bs_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
-            "names": ["mbllen_noisy", "ve_lol_real_train", "lol_all", "sice_all"],
-            "_names": ["mbllen_noisy", "ve_lol_real_train"],
-            "batch_size": 64,
+            "names": ["ve_lol_real_train", "lol_all", "sice_all"],
+            "batch_size": 32,
             "num_workers": 0,
-            "_sampler": "BalancedSampler",
+            "sampler": "TrainingSampler",
             "transforms": [
                 {
                     "name": "RandomCrop",
@@ -73,7 +72,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
+        "resume_checkpoint": "model_stage_one.pt",
         "use_grad_clip": false
    },
 
@@ -81,13 +80,13 @@
         "optimizer": {
             "name": "Adam",
             "args": {
-                "lr": 3e-3
+                "lr": 3e-4
             }
         },
-        "lr_scheduler": {
+        "_lr_scheduler": {
             "name": "WarmupMultiStepLR",
             "args": {
-                "milestones": [5000, 10000, 20000, 100000],
+                "milestones": [4000, 10000, 30000, 100000],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
             }
@@ -95,7 +94,7 @@
    },
 
    "test": {
-        "resume_checkpoint": "model_1000.pt",
+        "resume_checkpoint": "model_best.pt",
         "save_dir": ""
    }
 }

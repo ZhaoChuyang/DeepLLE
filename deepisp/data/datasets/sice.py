@@ -6,7 +6,7 @@ import random
 from ..catalog import DATASET_CATALOG
 
 
-def load_sice_dataset(root: str, split: str, seed: int = 0):
+def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, identity_aug: bool = True):
     """
     Load the SICE dataset, introduced in "Learning a Deep Single Image
     Contrast Enhancer from Multi-Exposure Images".
@@ -14,6 +14,8 @@ def load_sice_dataset(root: str, split: str, seed: int = 0):
     Args:
         root (str): Path to the root directory. The root directory
             should contains two directory "Dataset_Part1" and "Dataset_Part2".
+        low_light (bool): If only use low light images to construct dataset. You must
+            put the brightness label file "brightness_labels.txt" in the root directory.
         split (str): One of "train", "val", "test" and "all". According
             to the author paper, they split the dataset in to train, val and test
             set randomly with a ratio of 7:1:2. Here we following this setting.
@@ -26,30 +28,52 @@ def load_sice_dataset(root: str, split: str, seed: int = 0):
     
     Note: this function does not read image and 'image' does not
     exist in the dict fields.
+
+    Note: to 
     """
     assert split in ['train', 'val', 'test', 'trainval', 'all'], "split can only be 'train', 'val', 'test', 'trainval', or 'all'. Got {}.".format(split)
 
     dataset = []
 
+    brightness_labels = {}
+    with open(os.path.join(root, "brightness_labels.txt")) as fb:
+        for line in fb.readlines():
+            filename, brightness = line.split(" ")
+            brightness_labels[filename] = float(brightness)
+
     for imgdir in os.listdir(os.path.join(root, "Dataset_Part1")):
         if imgdir == "Label": continue
         for filename in os.listdir(os.path.join(root, "Dataset_Part1", imgdir)):
             image_path = os.path.join(root, "Dataset_Part1", imgdir, filename)
+            
+            relative_path = os.path.join("Dataset_Part1", imgdir, filename)
+            brightness = brightness_labels[relative_path]
+            if low_light and brightness > 0.5: continue
+
             if not check_path_is_image(image_path):
                 continue
             target_paths = find_files(os.path.join(root, "Dataset_Part1", "Label", f"{imgdir}.*"))
             target_path = target_paths[0]
             dataset.append({"image_path": image_path, "target_path": target_path})
+            if identity_aug:
+                dataset.append({"image_path": target_path, "target_path": target_path})
     
     for imgdir in os.listdir(os.path.join(root, "Dataset_Part2")):
         if imgdir == "Label": continue
         for filename in os.listdir(os.path.join(root, "Dataset_Part2", imgdir)):
             image_path = os.path.join(root, "Dataset_Part2", imgdir, filename)
+
+            relative_path = os.path.join("Dataset_Part2", imgdir, filename)
+            brightness = brightness_labels[relative_path]
+            if low_light and brightness > 0.5: continue
+
             if not check_path_is_image(image_path):
                 continue
             target_paths = find_files(os.path.join(root, "Dataset_Part2", "Label", f"{imgdir}.*"))
             target_path = target_paths[0]
             dataset.append({"image_path": image_path, "target_path": target_path})
+            if identity_aug:
+                dataset.append({"image_path": target_path, "target_path": target_path})
     
     random.seed(seed)
     random.shuffle(dataset)

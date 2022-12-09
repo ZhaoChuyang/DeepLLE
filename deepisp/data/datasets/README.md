@@ -20,7 +20,7 @@ VE-LOL
     └───train_images
     └───train_labels
 ```
-I create five splits of VE-LOL:
+Splits of VE-LOL:
 - "ve_lol_syn_train": training set of the synthesized VE-LOL dataset, which contains 900 image pairs.
 - "ve_lol_syn_test": testing set of the synthesized VE-LOL datasets, which contains 100 image pairs.
 - "ve_lol_real_train": training set of the real captured VE-LOL dataset, which contains 400 image pairs.
