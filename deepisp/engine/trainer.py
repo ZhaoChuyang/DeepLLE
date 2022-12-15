@@ -1,5 +1,6 @@
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import os
+import copy
 import glob
 import time
 import logging
@@ -36,12 +37,11 @@ class BaseTrainer:
         self.log_period = cfg_trainer['log_period']
         self.monitor = cfg_trainer['monitor']
         self.max_eval_iters = cfg_trainer["max_eval_iters"]
-
         self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
 
         # Try infer the number of iterations per epoch from the dataset.
-        # If the length of the dataset cannot be determined, which may happen
-        # when the dataset is iterable-style, raise an error.
+        # If the length of the dataset cannot be determined, which happens
+        # when the dataset is iterable-style, raise an runtime error.
         if self.iters_per_epoch == -1:
             try:
                 self.iters_per_epoch = len(self.train_loader)
@@ -56,12 +56,11 @@ class BaseTrainer:
         else:
             self.mnt_mode, self.mnt_metric = self.monitor.split()
             assert self.mnt_mode in ['min', 'max']
-
             self.mnt_best = inf if self.mnt_mode == 'min' else -inf
         
         self.iter = 1
         self.start_iter = 1
-        self.max_iter = self.iters_per_epoch * self.epochs + 1
+        self.max_iter = int(self.iters_per_epoch * self.epochs) + 1
 
         self.checkpoint_dir = cfg_trainer["ckp_dir"]
 
@@ -76,7 +75,7 @@ class BaseTrainer:
 
     @property
     def epoch(self):
-        return self.iter // self.iters_per_epoch
+        return int(self.iter // self.iters_per_epoch)
 
     def before_epoch(self):
         """
@@ -199,7 +198,23 @@ class Trainer(BaseTrainer):
     def __init__(self, model, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
         super().__init__(model, optimizer, config, train_loader, valid_loader, lr_scheduler)
 
-        self.use_grad_clip = config['trainer'].get('use_grad_clip', None)
+        self.use_grad_clip = config['trainer']['use_grad_clip']
+        self.ema_rate = config['trainer']['ema_rate']
+
+        # resume or initialize EMA parameters if saving the EMA model
+        if self.ema_rate:
+            if config["trainer"]["resume_checkpoint"]:
+                self.resume_ema_checkpoint(config["trainer"]["resume_checkpoint"])
+            else:
+                self.model_params = list(self.model.parameters())
+                self.ema_params = copy.deepcopy(self.model_params)
+
+    def _update_ema(self, target_params, source_params, rate=0.99):
+        for targ, src in zip(target_params, source_params):
+            targ.detach().mul_(rate).add_(src, alpha=1 - rate)
+
+    def forward(self, data):
+        return self.model(data)
 
     def run_step(self):
         assert self.model.training, "[Trainer] model was changed to eval mode!"
@@ -210,7 +225,7 @@ class Trainer(BaseTrainer):
         If you want to do something with the losses or compute metrics based on
         model's outputs, you can wrap the model.
         """
-        loss_dict, output_dict = self.model(data)
+        loss_dict, output_dict = self.forward(data)
 
         if isinstance(loss_dict, torch.Tensor):
             losses = loss_dict
@@ -229,8 +244,11 @@ class Trainer(BaseTrainer):
         # TODO: wrap the optimizer to do gradient clip
         if self.use_grad_clip:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.01)
-        
+
         self.optimizer.step()
+
+        if self.ema_rate:
+            self._update_ema(self.ema_params, self.model_params, self.ema_rate)
 
         self.write_metrics('train', self.iter, loss_dict, output_dict)
 
@@ -265,8 +283,6 @@ class Trainer(BaseTrainer):
                     self.max_iter,
                     100 * self.iter / self.max_iter,
                     self.train_metrics.avg('total_loss')))
-            self.train_metrics.reset()
-            self.valid_metrics.reset()
 
         # evaluate on the validation dataset periodically if validation dataset is provided.
         if self.do_validation and self.iter % self.eval_period == 0:
@@ -277,12 +293,45 @@ class Trainer(BaseTrainer):
             self.save_checkpoint()
             if self.save_last != -1:
                 self.clear_checkpoints()
+
+        # after saving the checkpoint, reset the metric tracker.
+        if self.iter % self.log_period == 0:
+            self.train_metrics.reset()
+            self.valid_metrics.reset()
+    
+    def resume_ema_checkpoint(self, resume_path: str):
+        # find ema checkpoint
+        model_filename = resume_path.split("/")[-1]
+        save_dir = os.path.dirname(resume_path)
         
+        is_best = "best" in model_filename
+        if is_best:
+            ema_filename = f"ema_{self.ema_rate}_best.pt"
+        else:
+            step = model_filename.split(".")[0].split("_")[-1]
+            ema_filename = f"ema_{self.ema_rate}_{step}.pt"
+        
+        ema_path = os.path.join(save_dir, ema_filename)
+        if not check_path_exists(ema_path):
+            raise FileNotFoundError(f"EMA checkpoint was not found in: {ema_path}")
+        
+        self.logger.info("Loading EMA checkpoint: {}...".format(ema_path))
+        checkpoint = torch.load(ema_path)
+
+        state_dict = checkpoint["state_dict"]
+
+        # convert state dict to model parameters
+        self.ema_params = [state_dict[name] for name, _ in self.model.named_parameters()]
+        self.model_params = list(self.model.parameters())
+
+        self.logger.info("EMA checkpoint loaded.")
 
     def save_checkpoint(self):
         """
         Save the current model checkpoint to "model_{iter_num}.pt" and the best model
         checkpoint to "model_best.pt".
+        If saving EMA model, save the EMA checkpoint to "ema_{ema_rate}_{iter_num}.pt" and 
+        the best checkpoint to "ema_{ema_rate}_best.pt".
         """
         result = self.train_metrics.result()
         if self.do_validation:
@@ -314,6 +363,37 @@ class Trainer(BaseTrainer):
 
         filename = "model_{}.pt".format(self.iter)
         self._save_checkpoint(filename, save_best=best)
+        
+        if self.ema_rate:
+            ema_filename = f"ema_{self.ema_rate}_{self.iter}.pt"
+            self._save_ema_checkpoint(ema_filename, save_best=best)
+
+    def _save_ema_checkpoint(self, filename: str, save_best: bool = False):
+        """
+        Save the state dict of the EMA model along with other training states.
+        """
+        state_dict = self.model.state_dict()
+        for i, (name, _value) in enumerate(self.model.named_parameters()):
+            assert name in state_dict
+            state_dict[name] = self.ema_params[i]
+        
+        state = {
+            'iter': self.iter,
+            'state_dict': state_dict,
+            'optimizer': self.optimizer.state_dict(),
+            'lr_scheduler': self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
+            'monitor_best': self.mnt_best,
+            'config': self.config
+        }
+        
+        path = os.path.join(self.checkpoint_dir, filename)
+        torch.save(state, path)
+        self.logger.info("Saving checkpoint to: {} ...".format(path))
+        
+        if save_best:
+            best_path = os.path.join(self.checkpoint_dir, f'ema_{self.ema_rate}_best.pt')
+            torch.save(state, best_path)
+            self.logger.info("Saving current best to: {} ...".format(best_path))
 
     def clear_checkpoints(self):
         """
@@ -322,14 +402,18 @@ class Trainer(BaseTrainer):
         """
         checkpoint_paths = []
         for path in glob.glob(f"{self.checkpoint_dir}/*.pt"):
-            if path.split("/")[-1] == "model_best.pt": continue
+            if "best" in path.split("/")[-1]: 
+                continue
             checkpoint_paths.append(path)
         
         checkpoint_paths = sorted(checkpoint_paths, key=lambda x: os.path.getmtime(x))
+        
         assert self.save_last > 0 and isinstance(self.save_last, int)
-        checkpoints_to_clear = checkpoint_paths[:-self.save_last]
+        # if save ema model, keep both the last n model checkpoints and ema checkpoints.
+        save_last = self.save_last * 2 if self.ema_rate else self.save_last
+
+        checkpoints_to_clear = checkpoint_paths[:-save_last]
         for path in checkpoints_to_clear:
-            # print(path)
             os.remove(path)
 
     @torch.no_grad()
@@ -345,7 +429,7 @@ class Trainer(BaseTrainer):
         start_time = time.perf_counter()
 
         for idx, data in enumerate(self.valid_loader):
-            loss_dict, output_dict = self.model(data)
+            loss_dict, output_dict = self.forward(data)
 
             if isinstance(loss_dict, torch.Tensor):
                 losses = loss_dict

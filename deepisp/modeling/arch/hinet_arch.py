@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch import Tensor
 from .base import BaseISPModel
 from .. import processing
-from .build import MODEL_REGISTRY
+from ..build import MODEL_REGISTRY
 from ..losses import L1Loss, MS_SSIM, SSIM
 
 def conv3x3(in_chn, out_chn, bias=True):

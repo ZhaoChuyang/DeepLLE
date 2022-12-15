@@ -4,7 +4,7 @@ from ...utils import check_path_is_image
 from ..catalog import DATASET_CATALOG
 
 
-def load_lol_dataset(root: str, split: str, identity_aug: bool = True):
+def load_lol_dataset(root: str, split: str, identity_aug: bool = False):
     """
     Load the LOL dataset into a list of dataset dicts.
 
@@ -29,9 +29,9 @@ def load_lol_dataset(root: str, split: str, identity_aug: bool = True):
     for filename in os.listdir(os.path.join(root, 'our485/high')):
         if not check_path_is_image(filename):
             continue
-        record = {}
         src_path = os.path.join(root, 'our485/low', filename)
         tgt_path = os.path.join(root, 'our485/high', filename)
+        record = {}
         record["image_path"] = src_path
         record["target_path"] = tgt_path
         train_dicts.append(record)
@@ -44,14 +44,11 @@ def load_lol_dataset(root: str, split: str, identity_aug: bool = True):
             continue
         src_path = os.path.join(root, 'eval15/low', filename)
         tgt_path = os.path.join(root, 'eval15/high', filename)
+        record = {}
         record["image_path"] = src_path
         record["target_path"] = tgt_path
         val_dicts.append(record)
 
-        if identity_aug:
-            val_dicts.append({"image_path": tgt_path, "target_path": tgt_path})
-        
-    
     if split == 'train':
         return train_dicts
     if split == 'val':

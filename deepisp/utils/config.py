@@ -11,9 +11,7 @@ __all__ = ["init_config"]
 
 def _convert_from_string(string: str):
     """Convert string to appropriate type automatically
-
     Valid data types include int, float, string, list, dict.
-
     Args:
         string: input string to convert
     
@@ -29,7 +27,6 @@ def _convert_from_string(string: str):
 
 def init_config(args):
     """Initialize the config
-
     Initialization is composed of two steps:
     1. Read config from config file.
     2. Merge config from step 1 with the base config.
@@ -45,16 +42,14 @@ def init_config(args):
     config = read_json(args.config)
 
     # Step 2: merge with base config.
-    # NOTE: We only merge base config at depth-1. Currently recursive config merging is not supported.
     if "base" in config:
-        base_config = read_json(config["base"])
-        config = _merge_config_with_base(config, base_config)
+        config = _merge_base_config(config)
 
     # Step 3: merge with command line options.
     if args.opts:
         config = _merge_config_with_opts(config, args.opts)
     
-    # Step 4: updating configurations
+    # Step 4: computing and updating configurations
     config["trainer"]["save_dir"] = os.path.abspath(config["trainer"]["save_dir"])
     config["trainer"]["ckp_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "checkpoints")
     config["trainer"]["log_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "log")
@@ -64,14 +59,31 @@ def init_config(args):
     
     if config["test"]["resume_checkpoint"] and not os.path.isabs(config["test"]["resume_checkpoint"]):
         config["test"]["resume_checkpoint"] = os.path.join(config["trainer"]["ckp_dir"], config["test"]["resume_checkpoint"])
+
+    if config["infer"]["resume_checkpoint"] and not os.path.isabs(config["infer"]["resume_checkpoint"]):
+        config["infer"]["resume_checkpoint"] = os.path.join(config["trainer"]["ckp_dir"], config["infer"]["resume_checkpoint"])
     
-    if not os.path.isabs(config["test"]["save_dir"]):
-        config["test"]["save_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "test", config["test"]["save_dir"])
+    if not os.path.isabs(config["infer"]["save_dir"]):
+        config["infer"]["save_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "test", config["infer"]["save_dir"])
 
     return config
 
 
-def _merge_config_with_base(config: Dict, base: Dict) -> Dict:
+def _merge_base_config(config: Dict) -> Dict:
+    """
+    Recursively merge current config with its base config.
+    """
+    if not config.get("base", None):
+        return config
+
+    base_config = read_json(config["base"])
+    base_config = _merge_base_config(base_config)
+    
+    merged_config = _merge_dicts(config, base_config)
+    return merged_config
+
+
+def _merge_dicts(config: Dict, base: Dict) -> Dict:
     """
     Merge current config with base config.
     Items exist in current config but not in base config will be kept in the merged config.
@@ -82,17 +94,17 @@ def _merge_config_with_base(config: Dict, base: Dict) -> Dict:
         config (dict): json dict of current config.
         base (dict): json dict of base config.
     """
-    if base is not None:
-        merged = copy.deepcopy(base)
-    else:
-        merged = {}
+    if base is None:
+        return config
+
+    merged = copy.deepcopy(base)
     
     for key in config.keys():
         if key not in merged:
             merged[key] = copy.deepcopy(config[key])
         else:
             if isinstance(config[key], Dict):
-                merged[key] = _merge_config_with_base(config[key], merged[key])
+                merged[key] = _merge_dicts(config[key], merged[key])
             else:
                 merged[key] = copy.deepcopy(config[key])
     
@@ -101,13 +113,11 @@ def _merge_config_with_base(config: Dict, base: Dict) -> Dict:
 
 def _merge_config_with_opts(config: Dict, opts: List) -> Dict:
     """Merge existing config with command line options
-
     Args:
         config: (dict) Parsed json object.
         opts: (list[str]) Extra config options used to modify config.
         If the option has already been in the config, modify the existed item,
         otherwise create new option item in the config dict.
-
     Returns:
         Modified config dict.
     """

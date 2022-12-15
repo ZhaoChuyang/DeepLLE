@@ -2,7 +2,7 @@
 from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
-from .build import MODEL_REGISTRY
+from ..build import MODEL_REGISTRY
 from .base import BaseISPModel
 from ..backbone import UNet
 from .. import processing

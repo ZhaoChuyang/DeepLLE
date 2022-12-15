@@ -148,6 +148,8 @@ def build_test_loader(
     if dataset is None:
         dataset_dicts = get_isp_dataset_dicts(names)
         dataset = CommISPDataset(dataset_dicts, False, transforms)
+    else:
+        assert transforms is None, "You should not provide transforms when you use dataset to construct the dataloader."
     
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"

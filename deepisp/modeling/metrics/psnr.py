@@ -1,9 +1,11 @@
 import torch
 import numpy as np
-from .util import reorder_image, to_y_channel
+from deepisp.modeling.metrics.build import METRIC_REGISTRY
+from deepisp.modeling.metrics.util import reorder_image, to_y_channel
 
 
-def PSNR(img1, img2, crop_border, input_order='HWC', test_y_channel=False):
+@METRIC_REGISTRY.register()
+def PSNR(img1, img2, crop_border: int=0, input_order: str='HWC', test_y_channel=False):
     """Calculate PSNR (Peak Signal-to-Noise Ratio).
 
     Ref: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio

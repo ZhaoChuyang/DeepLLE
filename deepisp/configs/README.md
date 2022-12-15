@@ -4,16 +4,16 @@ Details of the configuration options.
 ```python
 {
     "trainer":{
-        """
+        '''
         Period to save the checkpoint.
 
         Note: our training is iteration-based, so the following setting
         will save our checkpoint every 100 iterations.
-        """
+        '''
         "saved_period": 100,
 
 
-        """
+        '''
         Configuration to monitor the performance of the model and save the best checkpoint as "model_best.pt".
 
         "moniter" should be a string, available choices include "off" and "<mnt_mode> <mnt_metric>".
@@ -29,16 +29,16 @@ Details of the configuration options.
 
               Note: the corresponding metric on valid dataset is prepended with "valid_", for example the
               loss computed on valid dataset is called "valid_loss". 
-        """
+        '''
         "monitor": "min loss",
 
-        """
+        '''
         Path to the saved checkpoint to load for resuming training. Delete this term
         or set it to "" to train from scratch.
-        """
+        '''
         "resume_checkpoint": "/path/to/saved_checkpoint.pt",
 
-        """
+        '''
         Number of training epochs
 
         There is no epoch concept in our trainer, the number of epochs will be converted to
@@ -48,18 +48,40 @@ Details of the configuration options.
         Note: Iteration-based training is the suggested way, in which
         you can set "epochs" to 1, and set the iters_per_epoch as the
         total training iterations you need.
-        """
+        '''
         "epochs": 10,
 
-        """
+        '''
         Training iterations per epoch.
 
         You can set it to -1, if you want to train on the whole training dataset once per epoch,
         in which way the trainer will compute the iters_per_epoch based on the length of the dataset.
         But we don't recommend to do in this way, because the frame work is designed to train based
         on iteration, you should set it to the maximum training iterations you need.
-        """
+        '''
         "iters_per_epoch": 1000,
+
+    },
+    "test": {
+        '''
+        Metric functions used to assess the performance of the test datasets.
+
+        "metrics" can be either a list of the metric names, in which case metric function
+        with default arguments will be called, or a list of metric dicts, each dict should 
+        contain keys "name" and "args", where "name" is the metric name and "args" is the 
+        keyword arguments dict of certain metric. 
+        '''
+        "metrics": ["SSIM", "PSNR", ...],
+        "metrics": [
+            {
+                "name": "SSIM",
+                "args": {
+                    "crop_border": 0,
+                    "input_order": "HWC"
+                }
+            }
+        ],
+
 
     }
 }

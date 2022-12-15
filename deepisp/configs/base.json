@@ -16,8 +16,8 @@
             "transforms": null
         },
         "test": {
-            "img_dir": "",
-            "batch_size": 4,
+            "names": "lol_val",
+            "batch_size": 1,
             "num_workers": 0,
             "transforms": null
         }
@@ -36,6 +36,7 @@
         "log_period": 50,
         "save_last": -1,
         "save_dir": "../event_logs",
+        "ema_rate": null,
         "verbosity": 2,
         "monitor": "min total_loss",
         "max_eval_iters": -1,
@@ -55,6 +56,18 @@
    },
 
    "test": {
+        "resume_checkpoint": "",
+        "metrics": []
+   },
+
+   "inference": {
+        "data": {
+            "img_dir": "",
+            "batch_size": 1,
+            "num_workers": 0,
+            "transforms": null
+        },
+        
         "resume_checkpoint": "",
         "save_dir": "",
         "save_pair": false

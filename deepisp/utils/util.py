@@ -5,6 +5,9 @@ import time
 import glob
 import pathlib
 import socket
+import torch
+from typing import List
+import numpy as np
 
 
 # If you don't set the seed manually, will use current timestamp
@@ -87,3 +90,21 @@ def get_ip_address():
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
     return ip_address
+
+
+def convert_to_image(input: torch.Tensor, data_range: List = [0., 1.], input_order="CHW") -> np.ndarray:
+    """
+    Args:
+        input (tensor): input tensor of shape (C, H, W).
+    """
+    assert isinstance(input, torch.Tensor), "Expect input as Tensor."
+    
+    assert input_order in ["CHW", "HWC"], "input_order must be chosen from ['CHW', 'HWC']"
+    if input_order == "CHW":
+        input = torch.einsum("chw->hwc", input)
+    
+    input = input.detach().cpu().numpy()
+
+    input = (input - data_range[0]) / (data_range[1] - data_range[0])
+    input = np.clip(input * 255, 0, 255).astype(np.uint8)
+    return input

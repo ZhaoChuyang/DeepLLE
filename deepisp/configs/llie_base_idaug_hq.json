@@ -1,6 +1,7 @@
 {
-    "name": "deep_idaug_hq_exp",
+    "name": "base_idaug_hq_exp",
     "base": "deepisp/configs/base.json",
+    
     "data_factory": {
         "train": {
             "names": [
@@ -55,7 +56,7 @@
             ]
         },
         "test": {
-            "names": "ve_lol_real_test",
+            "names": "lol_val",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -67,14 +68,16 @@
         }
 
     },
+
     "model": {
         "name": "UNetBaseline",
         "args": {
             "bilinear": true,
-            "depth": 2,
-            "base_dim": 32
+            "depth": 4,
+            "base_dim": 16
         }
     },
+
     "trainer": {
         "epochs": 100,
         "iters_per_epoch": -1,
@@ -87,9 +90,10 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
     },
+
     "solver": {
         "optimizer": {
             "name": "Adam",
@@ -113,20 +117,7 @@
 
     "test": {
         "resume_checkpoint": "model_best.pt",
-        "metrics": [
-            {
-                "name": "MAE",
-                "args": {}
-            },
-            {
-                "name": "SSIM",
-                "args": {}
-            },
-            {
-                "name": "PSNR",
-                "args": {}
-            }
-        ]
+        "metrics": ["MAE", "SSIM", "PSNR"]
     },
 
     "infer": {

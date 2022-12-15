@@ -1,5 +1,5 @@
 {
-    "name": "deep_idaug_hq_exp",
+    "name": "deep_res_idaug_hq_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
@@ -9,7 +9,7 @@
                 "lol_train",
                 "sice_all"
             ],
-            "batch_size": 32,
+            "batch_size": 24,
             "num_workers": 0,
             "sampler": "BalancedSampler",
             "transforms": [
@@ -55,7 +55,7 @@
             ]
         },
         "test": {
-            "names": "ve_lol_real_test",
+            "names": "lol_val",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -65,7 +65,6 @@
                 }
             ]
         }
-
     },
     "model": {
         "name": "UNetBaseline",
@@ -83,6 +82,7 @@
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
+        "ema_rate": 0.999,
         "verbosity": 2,
         "monitor": "min total_loss",
         "max_eval_iters": -1,
@@ -110,7 +110,6 @@
             }
         }
     },
-
     "test": {
         "resume_checkpoint": "model_best.pt",
         "metrics": [
@@ -128,7 +127,6 @@
             }
         ]
     },
-
     "infer": {
         "data": {
             "img_dir": "/home/chuyang/Workspace/datasets/test",

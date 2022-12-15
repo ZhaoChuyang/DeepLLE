@@ -1,5 +1,5 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
-from ...utils import Registry
+from deepisp.utils import Registry
 
 
 MODEL_REGISTRY = Registry("MODEL")
@@ -27,3 +27,5 @@ def build_model(cfg_model):
     
     model = MODEL_REGISTRY.get(name)(**args)
     return model
+
+

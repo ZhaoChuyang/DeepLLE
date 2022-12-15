@@ -3,16 +3,14 @@ import argparse
 import os
 import torch
 from torch import nn
-from collections import defaultdict
 import json
-from typing import Dict, List, Optional, Callable, Union
+from typing import Dict, List, Optional
 import numpy as np
 import cv2
 import tqdm
 
-from deepisp.utils import init_config, convert_to_image, mkdirs, check_path_exists, check_path_is_image
+from deepisp.utils import init_config, mkdirs, check_path_exists, check_path_is_image
 from deepisp.modeling import build_model
-from deepisp.modeling.metrics import build_metric
 from deepisp.data import build_transforms, build_test_loader, CommISPDataset
 
 
@@ -146,58 +144,6 @@ def save_image(save_path: str, image: torch.Tensor, do_post_process: bool=False,
     cv2.imwrite(save_path, image)
 
 
-def build_test_metrics(cfg_metrics: List) -> Dict:
-    metrics = {}
-
-    for cfg in cfg_metrics:
-        if isinstance(cfg, str):
-            name = cfg
-            args = {}
-        else:
-            name = cfg["name"]
-            args = cfg["args"]
-        metric_fn = build_metric(name, args)
-        metrics[name] = metric_fn
-
-    return metrics
-
-
-@torch.no_grad()
-def test(dataloader, model, metrics: List[Dict[str, Callable]]):
-    results = defaultdict(list)
-
-    for data in tqdm.tqdm(dataloader, total=len(dataloader)):
-        outputs = model(data)
-        for output, record in zip(outputs, data):
-            target = record["target"]
-            target = convert_to_image(target)
-            output = convert_to_image(output)
-
-            for metric_name, metric_fn in metrics.items():
-                results[metric_name].append(metric_fn(output, target))
-    
-    return results
-
-# def test(metrics: List[Dict[str, Callable]]):
-#     results = defaultdict(list)
-#     high_dir = "/home/chuyang/Workspace/datasets/LOL/eval15/high"
-#     low_dir = "/home/chuyang/Workspace/datasets/LOL/eval15/Result"
-#     import glob
-#     high_paths = glob.glob(high_dir + "/*.png")
-#     low_paths = glob.glob(low_dir + "/*.png")
-#     high_paths = sorted(high_paths)
-#     low_paths = sorted(low_paths)
-#     for path1, path2 in zip(high_paths, low_paths):
-#         img1 = cv2.imread(path1)
-#         img2 = cv2.imread(path2)
-#         img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
-#         img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-#         for metric_name, metric_fn in metrics.items():
-#             results[metric_name].append(metric_fn(img2, img1))
-#     return results
-
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default="", type=str, help="path to the config file")
@@ -205,6 +151,9 @@ def main():
     args = parser.parse_args()
 
     config = init_config(args)
+
+    # create the test output directory if it does not exist.
+    mkdirs(config["infer"]["save_dir"])
 
     # setup_logger(config["trainer"]["log_dir"])
     # logger = logging.getLogger('train')
@@ -218,34 +167,30 @@ def main():
         device = torch.device('cpu')
 
     model = build_test_model(config["model"], device)
-    resume_checkpoint(model, config["test"]["resume_checkpoint"])
+    resume_checkpoint(model, config["infer"]["resume_checkpoint"])
 
-    metrics = build_test_metrics(config["test"]["metrics"])
+    # >>> Build Inference Data Loader >>>
+    cfg_infer_factory = config["infer"]["data"]
 
-    # >>> Build Test Data Loader >>>
-    cfg_test_factory = config["data_factory"]["test"]
-
-    transforms = build_transforms(cfg_test_factory["transforms"])
+    transforms = build_transforms(cfg_infer_factory["transforms"])
 
     # dataset_dicts = read_images(cfg_test_factory["img_dir"])
-    # dataset_dicts = load_data(cfg_test_factory["img_dir"], config["test"]["save_dir"])
+    dataset_dicts = load_data(cfg_infer_factory["img_dir"], config["infer"]["save_dir"])
 
-    # dataset = CommISPDataset(dataset_dicts, False, transforms)
-    print(f"Testing on {cfg_test_factory['names']} datasets...")
+    dataset = CommISPDataset(dataset_dicts, False, transforms)
+    dataloader = build_test_loader(dataset=dataset, batch_size=cfg_infer_factory["batch_size"], num_workers=0)
+    # <<< Build Inference Data Loader <<<
 
-    dataloader = build_test_loader(
-        names=cfg_test_factory["names"],
-        batch_size=cfg_test_factory["batch_size"],
-        num_workers=cfg_test_factory["num_workers"],
-        transforms=transforms
-    )
-    # <<< Build Test Data Loader <<<
+    with torch.no_grad():
+        for data in tqdm.tqdm(dataloader, total=len(dataloader)):
+            outputs = model(data)
 
-    results = test(dataloader, model, metrics)
-    # results = test(metrics)
-
-    for metric_name, records in results.items():
-        print(metric_name, ": ", sum(records) / len(records))
+            for output, record in zip(outputs, data):
+                save_path = record["save_path"]
+                input_image = None
+                if config["infer"]["save_pair"]:
+                    input_image = record["image"]
+                save_image(save_path, output, input_image=input_image)
 
 
 if __name__ == '__main__':

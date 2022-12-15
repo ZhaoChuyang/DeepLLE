@@ -54,13 +54,6 @@ def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool
             record["image_path"] = low_path
             record["target_path"] = high_path
             test_dicts.append(record)
-
-            if identity_aug:
-                record = {}
-                record["image_path"] = high_path
-                record["target_path"] = high_path
-                train_dicts.append(record)
-
     
     if category in ['real', 'all']:
         # add train splits
@@ -90,12 +83,6 @@ def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool
             record["image_path"] = low_path
             record["target_path"] = high_path
             test_dicts.append(record)
-
-            if identity_aug:
-                record = {}
-                record["image_path"] = high_path
-                record["target_path"] = high_path
-                train_dicts.append(record)
     
     if split == 'train':
         return train_dicts

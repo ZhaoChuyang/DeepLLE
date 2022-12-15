@@ -1,7 +1,18 @@
 import cv2
 import torch
 import numpy as np
-from .util import reorder_image, to_y_channel
+from deepisp.modeling.metrics.build import METRIC_REGISTRY
+from deepisp.modeling.metrics.util import reorder_image, to_y_channel
+import torch.nn.functional as F
+
+
+"""
+NOTE: there are two implementations of SSIM metric, one is borrowed from
+BasicSR (https://github.com/XPixelGroup/BasicSR/blob/master/basicsr/metrics/psnr_ssim.py),
+and the other one is borrowed from IQA_Pytorch package (IQA_pytorch.SSIM).
+Experiments show that the score computed with the later one is slightly higher
+than the former. In our repository we adopt the later one. 
+"""
 
 
 def _ssim(img1, img2):
@@ -163,8 +174,11 @@ def _ssim_cly(img1, img2):
     return ssim_map.mean()
 
 
-def SSIM(img1, img2, crop_border, input_order='HWC', test_y_channel=False):
+# @METRIC_REGISTRY.register()
+def _SSIM(img1, img2, *, crop_border: int=0, input_order='HWC', test_y_channel=False):
     """Calculate SSIM (structural similarity).
+
+    NOTE: Deperecated. We adopt the implementation of IQA_Pytorch as our SSIM metric. 
 
     Ref:
     Image quality assessment: From error visibility to structural similarity
@@ -238,3 +252,71 @@ def SSIM(img1, img2, crop_border, input_order='HWC', test_y_channel=False):
         # ssims.append(skimage.metrics.structural_similarity(img1[..., i], img2[..., i], multichannel=False))
 
     return np.array(ssims).mean()
+
+
+
+
+def fspecial_gauss(size, sigma, channels):
+    # Function to mimic the 'fspecial' gaussian MATLAB function
+    x, y = np.mgrid[-size//2 + 1:size//2 + 1, -size//2 + 1:size//2 + 1]
+    g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
+    g = torch.from_numpy(g/g.sum()).float().unsqueeze(0).unsqueeze(0)
+    return g.repeat(channels,1,1,1)
+
+
+def gaussian_filter(input, win):
+    out = F.conv2d(input, win, stride=1, padding=0, groups=input.shape[1])
+    return out
+
+def ssim(X, Y, win, get_ssim_map=False, get_cs=False, get_weight=False):
+    C1 = 0.01**2
+    C2 = 0.03**2
+
+    win = win.to(X.device)
+
+    mu1 = gaussian_filter(X, win)
+    mu2 = gaussian_filter(Y, win)
+    mu1_sq = mu1.pow(2)
+    mu2_sq = mu2.pow(2)
+    mu1_mu2 = mu1 * mu2
+    sigma1_sq = gaussian_filter(X * X, win) - mu1_sq
+    sigma2_sq = gaussian_filter(Y * Y, win) - mu2_sq
+    sigma12   = gaussian_filter(X * Y, win) - mu1_mu2
+
+    cs_map = (2 * sigma12 + C2) / (sigma1_sq + sigma2_sq + C2) 
+    cs_map = F.relu(cs_map) #force the ssim response to be nonnegative to avoid negative results.
+    ssim_map = ((2 * mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)) * cs_map
+    ssim_val = ssim_map.mean([1,2,3])
+
+    if get_weight:
+        weights = torch.log((1+sigma1_sq/C2)*(1+sigma2_sq/C2))
+        return ssim_map, weights
+
+    if get_ssim_map:
+        return ssim_map
+
+    if get_cs:
+        return ssim_val, cs_map.mean([1,2,3])
+        
+    return ssim_val
+
+
+@METRIC_REGISTRY.register()
+def SSIM(img1: np.ndarray, img2: np.ndarray):
+    """
+    Calculate SSIM (structural similarity), adopted from IQA_Pytorch.
+
+    Args:
+        img1 (ndarray): image in range [0, 255], channels in order (h, w, c).
+        img2 (ndarray): image in range [0, 255], channels in order (h, w, c).
+    """
+    X = np.transpose(img1, [2, 0, 1])[None,...] / 255
+    Y = np.transpose(img2, [2, 0, 1])[None,...] / 255
+    X = torch.tensor(X).float()
+    Y = torch.tensor(Y).float()
+    assert X.shape == Y.shape
+    win = fspecial_gauss(11, 1.5, 3)
+
+    with torch.no_grad():
+        score = ssim(X, Y, win=win)
+    return score.item()

@@ -101,16 +101,19 @@ class RandomCrop(Transform):
         Args:
             size (int): currently size can only be an int, i.e. only supports rectangle crop.
         """
-        self.size = size
+        if isinstance(size, int):
+            self.size = (size, size)
+        else:
+            self.size = size
 
     def __call__(self, image, target = None):
-        image = pad_if_smaller(image, self.size)
-        crop_params = T.RandomCrop.get_params(image, (self.size, self.size))
+        image = pad_if_smaller(image, min(self.size))
+        crop_params = T.RandomCrop.get_params(image, self.size)
         image = F.crop(image, *crop_params)
         if not target:
             return image
 
-        target = pad_if_smaller(target, self.size)
+        target = pad_if_smaller(target, min(self.size))
         target = F.crop(target, *crop_params)
         return image, target
 

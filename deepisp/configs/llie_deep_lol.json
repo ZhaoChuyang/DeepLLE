@@ -1,15 +1,12 @@
 {
-    "name": "deep_idaug_hq_exp",
+    "name": "deep_lol_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
             "names": [
-                "mbllen_noisy",
-                "ve_lol_real_train",
-                "lol_train",
-                "sice_all"
+                "lol_train"
             ],
-            "batch_size": 32,
+            "batch_size": 16,
             "num_workers": 0,
             "sampler": "BalancedSampler",
             "transforms": [
@@ -55,7 +52,7 @@
             ]
         },
         "test": {
-            "names": "ve_lol_real_test",
+            "names": "lol_val",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -76,19 +73,20 @@
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 200,
         "iters_per_epoch": -1,
-        "saved_period": 500,
+        "saved_period": 100,
         "save_last": 3,
+        "ema_rate": 0.999,
         "eval_period": 100,
         "log_period": 50,
         "save_dir": "../event_logs",
         "verbosity": 2,
-        "monitor": "min total_loss",
+        "monitor": "min valid_total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
-        "use_grad_clip": false
+        "_resume_checkpoint": "model_best.pt",
+        "use_grad_clip": true
     },
     "solver": {
         "optimizer": {
@@ -101,9 +99,8 @@
             "name": "WarmupMultiStepLR",
             "args": {
                 "milestones": [
-                    5000,
-                    30000,
-                    100000
+                    1000,
+                    4000
                 ],
                 "warmup_iters": 0,
                 "warmup_factor": 0.1
@@ -113,25 +110,12 @@
 
     "test": {
         "resume_checkpoint": "model_best.pt",
-        "metrics": [
-            {
-                "name": "MAE",
-                "args": {}
-            },
-            {
-                "name": "SSIM",
-                "args": {}
-            },
-            {
-                "name": "PSNR",
-                "args": {}
-            }
-        ]
+        "metrics": ["SSIM", "PSNR", "MAE"]
     },
 
     "infer": {
         "data": {
-            "img_dir": "/home/chuyang/Workspace/datasets/test",
+            "img_dir": "/home/chuyang/Workspace/datasets/test/lol",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
