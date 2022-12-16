@@ -19,12 +19,12 @@ class DoubleConv(nn.Module):
     output: (b, out_channels, h, w)
     """
 
-    def __init__(self, in_channels, out_channels, mid_channels=None):
+    def __init__(self, in_channels, out_channels, mid_channels: int = None, residual: bool = False):
         super().__init__()
         if not mid_channels:
             mid_channels = out_channels
 
-        self.res_conv = nn.Conv2d(in_channels, out_channels, 1, 1, bias=False)
+        self.res_conv = nn.Conv2d(in_channels, out_channels, 1, 1, bias=False) if residual else None
         
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
@@ -44,8 +44,10 @@ class DoubleConv(nn.Module):
         )
 
     def forward(self, x):
-        # + self.res_conv(x)
-        return self.double_conv(x) + self.res_conv(x)
+        if self.res_conv:
+            return self.double_conv(x) + self.res_conv(x)
+        else:
+            return self.double_conv(x)
 
 
 class Down(nn.Module):
@@ -58,11 +60,11 @@ class Down(nn.Module):
     output: (b, out_channels, h // 2, w // 2)
     """
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels: int, out_channels: int, residual: bool = False):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels)
+            DoubleConv(in_channels, out_channels, residual)
         )
 
     def forward(self, x):
@@ -82,17 +84,17 @@ class Up(nn.Module):
     (x1 + x2) => DoubleConv => output
     """
 
-    def __init__(self, in_channels, out_channels, bilinear=True):
+    def __init__(self, in_channels: int, out_channels: int, bilinear: bool = True, residual: bool = False):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-            # self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
-            self.conv = DoubleConv(in_channels, out_channels)
+            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2, residual)
+            # self.conv = DoubleConv(in_channels, out_channels)
         else:
             self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
-            self.conv = DoubleConv(in_channels, out_channels)
+            self.conv = DoubleConv(in_channels, out_channels, residual)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
@@ -126,7 +128,7 @@ UNet Network
 """
 
 class UNet(nn.Module):
-    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, base_dim: int = 64, depth: int = 4):
+    def __init__(self, n_channels: int = 3, n_classes: int = 3, bilinear: bool = False, base_dim: int = 64, depth: int = 4, residual: bool = False):
         """
         Simple UNet implementation.
 
@@ -135,6 +137,9 @@ class UNet(nn.Module):
             n_classes (int): num of output channels, default is 3.
             bilinear (bool): set True to use bilinear + conv to do the upsampling, otherwise
                 will use transposed conv to do the upsampling, by default is False.
+            base_dim (int): base dimension of the layers of UNet, 64 by default.
+            depth (int): depth of UNet, 4 by default.
+            residual (bool): whether use residual connection in the basic conv block in UNet, do not use by default.
         """
         super(UNet, self).__init__()
         self.n_channels = n_channels
@@ -153,17 +158,17 @@ class UNet(nn.Module):
         # 1,2..depth (num: depth)
         for i in range(1, depth+1):
             if i == depth:
-                self.down_layers.append(Down(prev_dim, base_dim * (2**i) // factor))
+                self.down_layers.append(Down(prev_dim, base_dim * (2**i) // factor, residual))
             else:
-                self.down_layers.append(Down(prev_dim, base_dim * (2**i)))
+                self.down_layers.append(Down(prev_dim, base_dim * (2**i), residual))
             prev_dim = base_dim * (2**i)
 
         # depth-1..1,0 (num: depth)
         for i in range(depth-1, -1, -1):
             if i == 0:
-                self.up_layers.append(Up(prev_dim, base_dim * (2**i), bilinear))
+                self.up_layers.append(Up(prev_dim, base_dim * (2**i), bilinear, residual))
             else:
-                self.up_layers.append(Up(prev_dim, base_dim * (2**i) // factor, bilinear))
+                self.up_layers.append(Up(prev_dim, base_dim * (2**i) // factor, bilinear, residual))
             prev_dim = base_dim * (2**i)
 
 

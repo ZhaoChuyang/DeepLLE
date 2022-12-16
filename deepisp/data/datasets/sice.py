@@ -6,7 +6,7 @@ import random
 from ..catalog import DATASET_CATALOG
 
 
-def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, identity_aug: bool = True):
+def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, identity_aug: bool = False):
     """
     Load the SICE dataset, introduced in "Learning a Deep Single Image
     Contrast Enhancer from Multi-Exposure Images".
@@ -29,9 +29,8 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
     Note: this function does not read image and 'image' does not
     exist in the dict fields.
 
-    Note: to 
     """
-    assert split in ['train', 'val', 'test', 'trainval', 'all'], "split can only be 'train', 'val', 'test', 'trainval', or 'all'. Got {}.".format(split)
+    assert split in ['train', 'val', 'test', 'all'], "split can only be 'train', 'val', 'test' or 'all'. Got {}.".format(split)
 
     dataset = []
 
@@ -88,8 +87,6 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
         return dataset[val_start:test_start]
     if split == 'test':
         return dataset[test_start:]
-    if split == 'trainval':
-        return dataset[:test_start]
     if split == 'all':
         return dataset
 

@@ -10,7 +10,7 @@ import numpy as np
 import cv2
 import tqdm
 
-from deepisp.utils import init_config, convert_to_image, mkdirs, check_path_exists, check_path_is_image
+from deepisp.utils import init_config, check_path_exists, check_path_is_image
 from deepisp.modeling import build_model
 from deepisp.modeling.metrics import build_metric
 from deepisp.data import build_transforms, build_test_loader, CommISPDataset
@@ -37,57 +37,6 @@ def resume_checkpoint(model, resume_path):
     missing_keys, unexpected_keys = model.load_state_dict(checkpoint['state_dict'])
     
     print("Model's state dict loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
-
-
-def read_images(img_dir):
-    dataset_dicts = []
-    for filename in os.listdir(img_dir):
-        path = os.path.join(img_dir, filename)
-        if not check_path_is_image(path): continue
-        record = {'image_path': path}
-        dataset_dicts.append(record)
-    return dataset_dicts
-
-
-def load_data(img_dir: str, save_dir: str):
-    """
-    Load all images in img_dir recursively and create corresponding 
-    directories rooted in the save_dir if any image is found.
-
-    Args:
-        img_dir (str): root directoy path of the input images.
-        save_dir (str): root directory of the saved images.
-    """
-    dataset_dicts = []
-    for root, _, files in os.walk(img_dir):
-        for filename in files:
-            if check_path_is_image(filename):
-                relative_dir = root[len(img_dir):]
-                if relative_dir.startswith("/"): relative_dir = relative_dir[1:]
-                output_dir = os.path.join(save_dir, relative_dir)
-                
-                if not check_path_exists(output_dir):
-                    mkdirs(output_dir)
-                
-                input_path = os.path.join(root, filename)
-                output_path = os.path.join(output_dir, filename)
-                record = {'image_path': input_path, "save_path": output_path}
-                dataset_dicts.append(record)
-    
-    return dataset_dicts
-                
-
-# def process_dataset(dataset_dicts: List[Dict], transforms):
-#     """
-#     1. read image
-#     2. apply given transforms on images
-#     """
-#     for record in dataset_dicts:
-#         image = Image.open(record["image_path"])
-#         image = transforms(image)
-#         record["image"] = image
-    
-#     return dataset_dicts
 
 
 def post_process(image: np.array, maxrange: float=0.8, highpercent: int=95, lowpercent: int=5, hsvgamma: float=0.8):
@@ -162,6 +111,25 @@ def build_test_metrics(cfg_metrics: List) -> Dict:
     return metrics
 
 
+def convert_to_image(input: torch.Tensor, data_range: List = [0., 1.], input_order="CHW") -> np.ndarray:
+    """
+    Args:
+        input (tensor): input tensor of shape (C, H, W).
+    """
+    assert isinstance(input, torch.Tensor), "Expect input as Tensor."
+    
+    assert input_order in ["CHW", "HWC"], "input_order must be chosen from ['CHW', 'HWC']"
+    if input_order == "CHW":
+        input = torch.einsum("chw->hwc", input)
+    
+    input = input.detach().cpu().numpy()
+
+    input = (input - data_range[0]) / (data_range[1] - data_range[0])
+    input = np.clip(input * 255, 0, 255).astype(np.uint8)
+    return input
+
+
+
 @torch.no_grad()
 def test(dataloader, model, metrics: List[Dict[str, Callable]]):
     results = defaultdict(list)
@@ -178,25 +146,6 @@ def test(dataloader, model, metrics: List[Dict[str, Callable]]):
     
     return results
 
-# def test(metrics: List[Dict[str, Callable]]):
-#     results = defaultdict(list)
-#     high_dir = "/home/chuyang/Workspace/datasets/LOL/eval15/high"
-#     low_dir = "/home/chuyang/Workspace/datasets/LOL/eval15/Result"
-#     import glob
-#     high_paths = glob.glob(high_dir + "/*.png")
-#     low_paths = glob.glob(low_dir + "/*.png")
-#     high_paths = sorted(high_paths)
-#     low_paths = sorted(low_paths)
-#     for path1, path2 in zip(high_paths, low_paths):
-#         img1 = cv2.imread(path1)
-#         img2 = cv2.imread(path2)
-#         img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
-#         img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-#         for metric_name, metric_fn in metrics.items():
-#             results[metric_name].append(metric_fn(img2, img1))
-#     return results
-
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -205,9 +154,6 @@ def main():
     args = parser.parse_args()
 
     config = init_config(args)
-
-    # setup_logger(config["trainer"]["log_dir"])
-    # logger = logging.getLogger('train')
 
     print("Configuration:")
     print(json.dumps(config, indent=4))
@@ -224,14 +170,9 @@ def main():
 
     # >>> Build Test Data Loader >>>
     cfg_test_factory = config["data_factory"]["test"]
+    print(f"Testing on {cfg_test_factory['names']} datasets...")
 
     transforms = build_transforms(cfg_test_factory["transforms"])
-
-    # dataset_dicts = read_images(cfg_test_factory["img_dir"])
-    # dataset_dicts = load_data(cfg_test_factory["img_dir"], config["test"]["save_dir"])
-
-    # dataset = CommISPDataset(dataset_dicts, False, transforms)
-    print(f"Testing on {cfg_test_factory['names']} datasets...")
 
     dataloader = build_test_loader(
         names=cfg_test_factory["names"],
@@ -242,7 +183,7 @@ def main():
     # <<< Build Test Data Loader <<<
 
     results = test(dataloader, model, metrics)
-    # results = test(metrics)
+
 
     for metric_name, records in results.items():
         print(metric_name, ": ", sum(records) / len(records))

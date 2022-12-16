@@ -11,9 +11,9 @@ from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss
 
 @MODEL_REGISTRY.register()
 class UNetBaseline(BaseISPModel):
-    def __init__(self, bilinear: bool = False, depth=2, base_dim=32, testing: bool = False):
+    def __init__(self, bilinear: bool = False, depth: int = 2, base_dim: int = 32, residual: bool = False, testing: bool = False):
         super().__init__(testing=testing)
-        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth)
+        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth, residual=residual)
 
         self.activation = nn.Tanh()
         
@@ -47,8 +47,6 @@ class UNetBaseline(BaseISPModel):
         # embed()
 
         outputs = self.backbone(images)
-        # outputs = images * outputs
-        # outputs = self.activation(outputs)
         loss_dict = self.losses(outputs, targets)
         output_dict = self.metrics(outputs, targets)
 
@@ -64,8 +62,8 @@ class UNetBaseline(BaseISPModel):
         loss_dict = {}
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
-        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
-        loss_dict["ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
+        # loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
+        # loss_dict["ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets))
 
         return loss_dict

@@ -23,8 +23,10 @@ from .ve_lol import register_ve_lol_dataset
 def register_all_lol(root):
     SPLITS = [
         ("lol_train", "LOL", "train"),
+        ("lol_train_idaug", "LOL", "train", True),
         ("lol_val", "LOL", "val"),
-        ("lol_all", "LOL", "all")
+        ("lol_all", "LOL", "all"),
+        ("lol_all_idaug", "LOL", "all", True)
     ]
     for name, dirname, split in SPLITS:
         register_lol_dataset(name, os.path.join(root, dirname), split)
@@ -33,9 +35,11 @@ def register_all_lol(root):
 def register_all_sice(root):
     SPLITS = [
         ("sice_train", "SICE", "train"),
+        ("sice_train_idaug", "SICE", "train", True),
         ("sice_val", "SICE", "val"),
-        ("sice_trainval", "SICE", "trainval"),
+        ("sice_test", "SICE", "test"),
         ("sice_all", "SICE", "all")
+        ("sice_all_idaug", "SICE", "all", True),
     ]
     for name, dirname, split in SPLITS:
         register_sice_dataset(name, os.path.join(root, dirname), split)
@@ -53,10 +57,13 @@ def register_all_mbllen(root):
 def register_all_ve_lol(root):
     ALL = [
         ("ve_lol_syn_train", "VE-LOL", "syn", "train"),
+        ("ve_lol_syn_train_idaug", "VE-LOL", "syn", "train", True),
         ("ve_lol_syn_test", "VE-LOL", "syn", "test"),
         ("ve_lol_real_train", "VE-LOL", "real", "train"),
+        ("ve_lol_real_train_idaug", "VE-LOL", "real", "train", True),
         ("ve_lol_real_test", "VE-LOL", "real", "test"),
         ("ve_lol_all", "VE-LOL", "all", "all"),
+        ("ve_lol_all_idaug", "VE-LOL", "all", "all", True),
     ]
     for name, dirname, category, split in ALL:
         register_ve_lol_dataset(name, os.path.join(root, dirname), category, split)

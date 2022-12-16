@@ -21,6 +21,15 @@ def pad_if_smaller(img, size, fill=0):
 
 class Transform(ABC):
     def __init__(self):
+        """
+        Base class for all transforms. For ISP tasks, we often
+        need to process input with a pair of images, i.e. input
+        image and target image. So the transform function need to
+        take these two as inputs and do the same transforms on them.
+        
+        In inference stage, the target image may not provided, so
+        the transforms should function correctly with only one input.
+        """
         pass
 
     @abstractmethod
@@ -118,20 +127,23 @@ class RandomCrop(Transform):
         return image, target
 
 
-
 class CenterCrop(Transform):
     def __init__(self, size):
         self.size = size
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = F.center_crop(image, self.size)
+        if not target: 
+            return image
         target = F.center_crop(target, self.size)
         return image, target
 
 
 class PILToTensor(Transform):
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = F.pil_to_tensor(image)
+        if not target:
+            return image
         target = F.pil_to_tensor(target)
         return image, target
 
@@ -140,8 +152,10 @@ class ConvertImageDtype(Transform):
     def __init__(self, dtype):
         self.dtype = dtype
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = F.convert_image_dtype(image, self.dtype)
+        if not target:
+            return image
         target = F.convert_image_dtype(target, self.dtype)
         return image, target
 
@@ -151,8 +165,10 @@ class Normalize(Transform):
         self.mean = mean
         self.std = std
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         image = F.normalize(image, mean=self.mean, std=self.std)
+        if not target:
+            return image
         target = F.normalize(image, mean=self.mean, std=self.std)
         return image, target
 
@@ -165,7 +181,6 @@ class ToTensor(Transform):
         image = F.to_tensor(image)
         if target is None:
             return image
-        
         target = F.to_tensor(target)
         return image, target
 
@@ -190,6 +205,10 @@ class RandomRightRotation(Transform):
 
 class IdentityAug(Transform):
     def __init__(self, p):
+        """
+        Construct an identity pair of target images given the probability p.
+        This is observed to improve the perceptual quality of the results.
+        """
         self.p = p
 
     def __call__(self, image, target = None):
