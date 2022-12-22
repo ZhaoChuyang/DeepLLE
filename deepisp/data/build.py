@@ -77,7 +77,7 @@ def get_isp_dataset_sizes(
     assert len(names), names
 
     dataset_sizes = [len(DATASET_CATALOG.get(name)) for name in names]
-    print(dataset_sizes)
+
     return dataset_sizes
 
 

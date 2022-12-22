@@ -42,7 +42,7 @@ class L1Loss(nn.Module):
             loss = loss * mask
 
             if self.reduction == 'mean':
-                return loss.sum() / mask.sum()
+                return loss.mean()
 
             if self.reduction == 'sum':
                 return loss.sum()
@@ -80,7 +80,7 @@ class MSELoss(nn.Module):
             loss = loss * mask
 
             if self.reduction == 'mean':
-                return loss.sum() / mask.sum()
+                return loss.mean()
 
             if self.reduction == 'sum':
                 return loss.sum()
@@ -119,7 +119,7 @@ class CharbonnierLoss(nn.Module):
             loss = loss * mask
         
         if self.reduction == 'mean':
-            return loss.sum() / mask.sum()
+            return loss.mean()
 
         if self.reduction == 'sum':
             return loss.sum()

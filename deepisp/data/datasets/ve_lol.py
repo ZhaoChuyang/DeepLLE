@@ -4,7 +4,7 @@ from ...utils import check_path_is_image, check_path_exists
 from ..catalog import DATASET_CATALOG
 
 
-def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool = False):
+def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = False):
     """
     Args:
         root (str): path to the root directory of VE-LOL. Refer to `deepisp/data/datasets/README.md` for the file structure inside root.
@@ -38,7 +38,7 @@ def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool
             record["target_path"] = high_path
             train_dicts.append(record)
 
-            if identity_aug:
+            if idaug:
                 record = {}
                 record["image_path"] = high_path
                 record["target_path"] = high_path
@@ -67,7 +67,7 @@ def load_ve_lol_dataset(root: str, category: str, split: str, identity_aug: bool
             record["target_path"] = high_path
             train_dicts.append(record)
 
-            if identity_aug:
+            if idaug:
                 record = {}
                 record["image_path"] = high_path
                 record["target_path"] = high_path
@@ -102,7 +102,7 @@ def _iter_subdir(low_dir, high_dir):
         yield low_path, high_path
 
 
-def register_ve_lol_dataset(name: str, root: str, category: str, split: str):
+def register_ve_lol_dataset(name: str, root: str, category: str, split: str, idaug: bool):
     """
     Register lol dataset with given name. The rigistered dataset
     can be used directly by specifying the registered name in
@@ -114,7 +114,7 @@ def register_ve_lol_dataset(name: str, root: str, category: str, split: str):
         split (str): split type of the dataset. Refer to load_lol_dataset() for more details.
     
     """
-    DATASET_CATALOG.register(name, lambda: load_ve_lol_dataset(root, category, split))
+    DATASET_CATALOG.register(name, lambda: load_ve_lol_dataset(root, category, split, idaug))
 
 
 

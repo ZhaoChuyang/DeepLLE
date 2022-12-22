@@ -22,27 +22,27 @@ from .ve_lol import register_ve_lol_dataset
 
 def register_all_lol(root):
     SPLITS = [
-        ("lol_train", "LOL", "train"),
+        ("lol_train", "LOL", "train", False),
         ("lol_train_idaug", "LOL", "train", True),
-        ("lol_val", "LOL", "val"),
-        ("lol_all", "LOL", "all"),
+        ("lol_val", "LOL", "val", False),
+        ("lol_all", "LOL", "all", False),
         ("lol_all_idaug", "LOL", "all", True)
     ]
-    for name, dirname, split in SPLITS:
-        register_lol_dataset(name, os.path.join(root, dirname), split)
+    for name, dirname, split, idaug in SPLITS:
+        register_lol_dataset(name, os.path.join(root, dirname), split, idaug)
 
 
 def register_all_sice(root):
     SPLITS = [
-        ("sice_train", "SICE", "train"),
+        ("sice_train", "SICE", "train", False),
         ("sice_train_idaug", "SICE", "train", True),
-        ("sice_val", "SICE", "val"),
-        ("sice_test", "SICE", "test"),
-        ("sice_all", "SICE", "all")
+        ("sice_val", "SICE", "val", False),
+        ("sice_test", "SICE", "test", False),
+        ("sice_all", "SICE", "all", False),
         ("sice_all_idaug", "SICE", "all", True),
     ]
-    for name, dirname, split in SPLITS:
-        register_sice_dataset(name, os.path.join(root, dirname), split)
+    for name, dirname, split, idaug in SPLITS:
+        register_sice_dataset(name, os.path.join(root, dirname), split, idaug)
 
 
 def register_all_mbllen(root):
@@ -56,17 +56,17 @@ def register_all_mbllen(root):
 
 def register_all_ve_lol(root):
     ALL = [
-        ("ve_lol_syn_train", "VE-LOL", "syn", "train"),
+        ("ve_lol_syn_train", "VE-LOL", "syn", "train", False),
         ("ve_lol_syn_train_idaug", "VE-LOL", "syn", "train", True),
-        ("ve_lol_syn_test", "VE-LOL", "syn", "test"),
-        ("ve_lol_real_train", "VE-LOL", "real", "train"),
+        ("ve_lol_syn_test", "VE-LOL", "syn", "test", False),
+        ("ve_lol_real_train", "VE-LOL", "real", "train", False),
         ("ve_lol_real_train_idaug", "VE-LOL", "real", "train", True),
-        ("ve_lol_real_test", "VE-LOL", "real", "test"),
-        ("ve_lol_all", "VE-LOL", "all", "all"),
+        ("ve_lol_real_test", "VE-LOL", "real", "test", False),
+        ("ve_lol_all", "VE-LOL", "all", "all", False),
         ("ve_lol_all_idaug", "VE-LOL", "all", "all", True),
     ]
-    for name, dirname, category, split in ALL:
-        register_ve_lol_dataset(name, os.path.join(root, dirname), category, split)
+    for name, dirname, category, split, idaug in ALL:
+        register_ve_lol_dataset(name, os.path.join(root, dirname), category, split, idaug)
 
 
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))

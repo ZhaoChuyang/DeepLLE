@@ -4,7 +4,7 @@ from ...utils import check_path_is_image
 from ..catalog import DATASET_CATALOG
 
 
-def load_lol_dataset(root: str, split: str, identity_aug: bool = False):
+def load_lol_dataset(root: str, split: str, idaug: bool = False):
     """
     Load the LOL dataset into a list of dataset dicts.
 
@@ -36,7 +36,7 @@ def load_lol_dataset(root: str, split: str, identity_aug: bool = False):
         record["target_path"] = tgt_path
         train_dicts.append(record)
 
-        if identity_aug:
+        if idaug:
             train_dicts.append({"image_path": tgt_path, "target_path": tgt_path})
     
     for filename in os.listdir(os.path.join(root, 'eval15/high')):
@@ -57,7 +57,7 @@ def load_lol_dataset(root: str, split: str, identity_aug: bool = False):
         return train_dicts + val_dicts
 
 
-def register_lol_dataset(name: str, root: str, split: str):
+def register_lol_dataset(name: str, root: str, split: str, idaug: bool):
     """
     Register lol dataset with given name. The rigistered dataset
     can be used directly by specifying the registered name in
@@ -69,7 +69,7 @@ def register_lol_dataset(name: str, root: str, split: str):
         split (str): split type of the dataset. Refer to load_lol_dataset() for more details.
     
     """
-    DATASET_CATALOG.register(name, lambda: load_lol_dataset(root, split))
+    DATASET_CATALOG.register(name, lambda: load_lol_dataset(root, split, idaug))
 
 
 if __name__ == '__main__':

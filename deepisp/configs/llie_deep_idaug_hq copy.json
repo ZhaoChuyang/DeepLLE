@@ -1,0 +1,148 @@
+{
+    "name": "deep_idaug_hq_exp",
+    "base": "deepisp/configs/base.json",
+    "data_factory": {
+        "train": {
+            "names": [
+                "mbllen_noisy",
+                "ve_lol_real_train",
+                "lol_train",
+                "sice_all"
+            ],
+            "batch_size": 32,
+            "num_workers": 0,
+            "sampler": "BalancedSampler",
+            "transforms": [
+                {
+                    "name": "RandomCrop",
+                    "args": {
+                        "size": 256
+                    }
+                },
+                {
+                    "name": "RandomVerticalFlip",
+                    "args": {
+                        "flip_prob": 0.5
+                    }
+                },
+                {
+                    "name": "RandomHorizontalFlip",
+                    "args": {
+                        "flip_prob": 0.5
+                    }
+                },
+                {
+                    "name": "RandomRightRotation",
+                    "args": {
+                        "p": 0.5
+                    }
+                },
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        },
+        "valid": {
+            "names": "lol_val",
+            "batch_size": 4,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        },
+        "test": {
+            "names": "ve_lol_real_test",
+            "batch_size": 1,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        }
+
+    },
+    "model": {
+        "name": "UNetBaseline",
+        "args": {
+            "bilinear": true,
+            "depth": 2,
+            "base_dim": 32
+        }
+    },
+    "trainer": {
+        "epochs": 100,
+        "iters_per_epoch": -1,
+        "saved_period": 500,
+        "save_last": 3,
+        "eval_period": 100,
+        "log_period": 50,
+        "save_dir": "../event_logs",
+        "verbosity": 2,
+        "monitor": "min total_loss",
+        "max_eval_iters": -1,
+        "tensorboard": true,
+        "resume_checkpoint": "model_best.pt",
+        "use_grad_clip": false
+    },
+    "solver": {
+        "optimizer": {
+            "name": "Adam",
+            "args": {
+                "lr": 3e-3
+            }
+        },
+        "lr_scheduler": {
+            "name": "WarmupMultiStepLR",
+            "args": {
+                "milestones": [
+                    5000,
+                    30000,
+                    100000
+                ],
+                "warmup_iters": 0,
+                "warmup_factor": 0.1
+            }
+        }
+    },
+
+    "test": {
+        "resume_checkpoint": "model_best.pt",
+        "metrics": [
+            {
+                "name": "MAE",
+                "args": {}
+            },
+            {
+                "name": "SSIM",
+                "args": {}
+            },
+            {
+                "name": "PSNR",
+                "args": {}
+            }
+        ]
+    },
+
+    "infer": {
+        "data": {
+            "img_dir": "/home/chuyang/Workspace/datasets/test",
+            "batch_size": 1,
+            "num_workers": 0,
+            "transforms": [
+                {
+                    "name": "ToTensor",
+                    "args": {}
+                }
+            ]
+        },
+        "resume_checkpoint": "model_best.pt",
+        "save_dir": "",
+        "save_pair": true
+    }
+}
