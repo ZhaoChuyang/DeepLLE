@@ -4,12 +4,11 @@
     "data_factory": {
         "train": {
             "names": [
-                "mbllen_noisy",
                 "ve_lol_real_train_idaug",
                 "lol_train_idaug",
                 "sice_all_idaug"
             ],
-            "batch_size": 16,
+            "batch_size": 4,
             "num_workers": 4,
             "sampler": "BalancedSampler",
             "transforms": [
@@ -70,9 +69,15 @@
     "model": {
         "name": "MultiStageUNet",
         "args": {
+            "cfg_prenet": {
+                "bilinear": true,
+                "depth": 2,
+                "base_dim": 32
+            },
+            "resume_path": "/home/chuyang/Workspace/event_logs/deep_idaug_hq_exp/checkpoints/model_best.pt",
             "bilinear": true,
-            "depth": 2,
-            "base_dim": 32,
+            "depth": 6,
+            "base_dim": 64,
             "residual": false
         }
     },
@@ -88,8 +93,8 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "model_best.pt",
-        "use_grad_clip": false
+        "resume_checkpoint": "model_best.pt",
+        "use_grad_clip": true
     },
     "solver": {
         "optimizer": {

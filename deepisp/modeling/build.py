@@ -28,4 +28,3 @@ def build_model(cfg_model):
     model = MODEL_REGISTRY.get(name)(**args)
     return model
 
-

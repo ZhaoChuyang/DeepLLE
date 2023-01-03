@@ -131,7 +131,7 @@
 
     "infer": {
         "data": {
-            "img_dir": "/home/chuyang/Workspace/datasets/test",
+            "img_dir": "/home/chuyang/Workspace/datasets/realcap",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -142,7 +142,7 @@
             ]
         },
         "resume_checkpoint": "model_best.pt",
-        "save_dir": "",
+        "save_dir": "realcap",
         "save_pair": true
     }
 }

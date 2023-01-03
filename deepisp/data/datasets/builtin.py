@@ -18,6 +18,7 @@ from .lol import register_lol_dataset
 from .sice import register_sice_dataset
 from .mbllen import register_mbllen_dataset
 from .ve_lol import register_ve_lol_dataset
+from .fivek import register_fivek_dataset
 
 
 def register_all_lol(root):
@@ -69,8 +70,22 @@ def register_all_ve_lol(root):
         register_ve_lol_dataset(name, os.path.join(root, dirname), category, split, idaug)
 
 
+def register_all_fivek(root):
+    ALL = [
+        ("fivek_a", "fivek", "a"),
+        ("fivek_b", "fivek", "b"),
+        ("fivek_c", "fivek", "c"),
+        ("fivek_d", "fivek", "d"),
+        ("fivek_e", "fivek", "e"),
+        ("fivek_all", "fivek", "all"),
+    ]
+    for name, dirname, expert in ALL:
+        register_fivek_dataset(name, os.path.join(root, dirname), expert)
+
+
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))
 register_all_lol(_root)
 register_all_sice(_root)
 register_all_mbllen(_root)
 register_all_ve_lol(_root)
+register_all_fivek(_root)

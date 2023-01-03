@@ -141,7 +141,7 @@ class TVLoss(L1Loss):
         assert reduction in ["mean", "sum"], "Supported reduction mode is 'mean' | 'sum'."
         super(TVLoss, self).__init__(reduction=reduction)
 
-    def forward(self, input: Tensor):
+    def forward(self, input: Tensor, target=None):
         y_diff = super().forward(input[:,:,:-1,:], input[:,:,1:,:])
         x_diff = super().forward(input[:,:,:,:-1], input[:,:,:,1:])
 

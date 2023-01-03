@@ -1,16 +1,16 @@
 {
-    "name": "deep_idaug_hq_exp",
+    "name": "deep_hq_exp",
     "base": "deepisp/configs/base.json",
     "data_factory": {
         "train": {
             "names": [
-                "mbllen_noisy",
+                "fivek_a",
                 "ve_lol_real_train",
                 "lol_train",
                 "sice_all"
             ],
             "batch_size": 32,
-            "num_workers": 0,
+            "num_workers": 4,
             "sampler": "BalancedSampler",
             "transforms": [
                 {
@@ -87,7 +87,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
     },
     "solver": {

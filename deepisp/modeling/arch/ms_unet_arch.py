@@ -2,11 +2,12 @@
 from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
-from ..build import MODEL_REGISTRY
+from ..build import MODEL_REGISTRY, build_model
 from .base import BaseISPModel
 from ..backbone import UNet
 from .. import processing
-from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss
+from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss, CharbonnierLoss
+
 
 
 """
@@ -24,7 +25,7 @@ def save_image(save_path: str, image: torch.Tensor):
 
 @MODEL_REGISTRY.register()
 class MultiStageUNet(BaseISPModel):
-    def __init__(self, bilinear: bool = False, depth: int = 2, base_dim: int = 32, residual: bool = False, testing: bool = False):
+    def __init__(self, cfg_prenet: Dict, resume_path: str, bilinear: bool = False, depth: int = 2, base_dim: int = 32, residual: bool = False, testing: bool = False):
         """
         Multi-stage architecture is widely used in image restoration, some of the SOTA methods in image restoration,
         deblurring resort to this architecture, i.e., HINet, MPRNet, etc.
@@ -32,21 +33,34 @@ class MultiStageUNet(BaseISPModel):
         super(MultiStageUNet, self).__init__(testing=testing)
         self.register_buffer("counter", tensor=torch.zeros(size=(1,)))
 
-        self.stage_1 = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth, residual=residual)
-        self.stage_2 = UNet(n_channels=6, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth, residual=residual)
+        self.prenet = UNet(n_channels=3, n_classes=3, **cfg_prenet)
+        # self.prenet = build_model(cfg_prenet)
+        checkpoint = torch.load(resume_path)
+        state_dict = checkpoint['state_dict']
+        keys = sorted(state_dict.keys())
+        prefix = "module.backbone."
+        for key in keys:
+            if key.startswith(prefix):
+                newkey = key[len(prefix):]
+                state_dict[newkey] = state_dict.pop(key)
         
-        self.l1_loss = L1Loss()
-        self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
-        self.ssim_loss = SSIM(data_range = 1.0)
-        self.perceptual_loss = VGGPerceptualLoss(False)
+        missing_keys, unexpected_keys = self.prenet.load_state_dict(state_dict, strict=False)
+        print(missing_keys, unexpected_keys)
+
+        for param in self.prenet.parameters():
+            param.requires_grad = False
         
-
-
+        self.stage_2 = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth, residual=residual)
+        
+        self.l1_loss = CharbonnierLoss()
+        # self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
+        # self.ssim_loss = SSIM(data_range = 1.0)
+        # self.perceptual_loss = VGGPerceptualLoss(False)
+        
     def forward(self, batched_inputs: List[Dict[str, Tensor]]):
         if self.testing:
             images, image_sizes = self.preprocess_test_images(batched_inputs)
-            x = self.stage_1(images)
-            x = torch.cat([x, images], dim=1)
+            x = self.prenet(images)
             x = self.stage_2(x)
             # outputs = self.activation(outputs)
             outputs = self.postprocess_images(x, image_sizes)
@@ -54,22 +68,11 @@ class MultiStageUNet(BaseISPModel):
         
         images, targets, image_sizes = self.preprocess_images(batched_inputs)
 
+        x = self.prenet(images)
+        x = self.stage_2(x) 
 
-
-        x1 = self.stage_1(images)
-        x = torch.cat([x1, images], dim=1)
-        x2 = self.stage_2(x) 
-
-        loss_dict_1 = self.losses(x1, targets, 1)
-        loss_dict_2 = self.losses(x2, targets, 2)
-        if self.counter % 2 == 0:
-            loss_dict = loss_dict_1
-        else:
-            loss_dict = loss_dict_2
-        self.counter += 1
-        # loss_dict.update(loss_dict_2)
-
-        output_dict = self.metrics(x2, targets)
+        loss_dict = self.losses(x, targets)
+        output_dict = self.metrics(x, targets)
 
         return loss_dict, output_dict
 
@@ -78,13 +81,13 @@ class MultiStageUNet(BaseISPModel):
         output_dict = {}
         return output_dict
 
-    def losses(self, inputs: Tensor, targets: Tensor, stage: int):
+    def losses(self, inputs: Tensor, targets: Tensor):
         assert inputs.shape == targets.shape, "Shapes of inputs: {} and targets: {} do not match.".format(inputs.shape, targets.shape)
         loss_dict = {}
 
-        loss_dict[f"stage_{stage}_l1_loss"] = self.l1_loss(inputs, targets)
-        loss_dict[f"stage_{stage}_perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
-        loss_dict[f"stage_{stage}_ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
+        loss_dict[f"l1_loss"] = self.l1_loss(inputs, targets)
+        # loss_dict[f"perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
+        # loss_dict[f"ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets))
 
         return loss_dict
