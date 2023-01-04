@@ -1,6 +1,6 @@
 from typing import Dict, Callable
 from functools import partial
-from deepisp.utils import Registry
+from deeplle.utils import Registry
 
 
 METRIC_REGISTRY = Registry("METRIC")

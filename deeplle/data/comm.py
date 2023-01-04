@@ -1,8 +1,18 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
+import itertools
 from typing import Dict, List
 from torch.utils import data
 from PIL import Image
 
+
+def _shard_iterator_dataloader_worker(iterable):
+    # Shard the iterable if we're currently inside pytorch dataloader worker.
+    worker_info = data.get_worker_info()
+    if worker_info is None or worker_info.num_workers == 1:
+        # do nothing
+        yield from iterable
+    else:
+        yield from itertools.islice(iterable, worker_info.id, None, worker_info.num_workers)
 
 
 class ToIterableDataset(data.IterableDataset):
@@ -10,13 +20,31 @@ class ToIterableDataset(data.IterableDataset):
     Convert an old indices-based (also called map-style) dataset
     to an iterable-style dataset.
     """
-    def __init__(self, dataset: data.Dataset, sampler: data.Sampler):
+    def __init__(self, dataset: data.Dataset, sampler: data.Sampler, shard_sampler: bool = True):
+        """
+        Args:
+            dataset: an old-style dataset with ``__getitem__``
+            sampler: a cheap iterable that produces indices to be applied on ``dataset``.
+            shard_sampler: whether to shard the sampler based on the current pytorch data loader
+                worker id. When an IterableDataset is forked by pytorch's DataLoader into multiple
+                workers, it is responsible for sharding its data based on worker id so that workers
+                don't produce identical data.
+
+                Most samplers (like our TrainingSampler) do not shard based on dataloader worker id
+                and this argument should be set to True. But certain samplers may be already
+                sharded, in that case this argument should be set to False.
+        """
         assert not isinstance(dataset, data.IterableDataset), dataset
         assert isinstance(sampler, data.Sampler), sampler
         self.dataset = dataset
         self.sampler = sampler
+        self.shard_sampler = shard_sampler
 
     def __iter__(self):
+        if self.shard_sampler:
+            sampler = self.sampler
+        else:
+            sampler = _shard_iterator_dataloader_worker(self.sampler)
         for idx in self.sampler:
             yield self.dataset[idx]
     

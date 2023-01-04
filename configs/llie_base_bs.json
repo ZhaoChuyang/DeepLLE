@@ -1,6 +1,6 @@
 {
     "name": "base_bs_exp",
-    "base": "deepisp/configs/base.json",
+    "base": "configs/base.json",
     "data_factory": {
         "train": {
             "names": ["ve_lol_real_train", "lol_all", "sice_all"],

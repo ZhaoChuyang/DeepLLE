@@ -5,9 +5,14 @@ import glob
 import time
 import logging
 from typing import Dict
+import weakref
 import torch
+from torch import nn
+import numpy as np
 from numpy import inf
-from ..utils import TensorboardWriter, MetricTracker, check_path_exists
+from deeplle.utils import TensorboardWriter, MetricTracker, check_path_exists, comm
+from deeplle.utils.checkpoint import Checkpointer
+from torch.nn.parallel import DistributedDataParallel, DataParallel
 
 
 class BaseTrainer:
@@ -16,7 +21,7 @@ class BaseTrainer:
     """
     def __init__(self, model, optimizer, config, train_loader, valid_loader = None, lr_scheduler = None) -> None:
         self.config = config
-        self.logger = logging.getLogger('train')
+        self.logger = logging.getLogger(__name__)
 
         self.model = model
         self.optimizer = optimizer
@@ -70,9 +75,6 @@ class BaseTrainer:
         self.train_metrics = MetricTracker(writer=self.tb_writer)
         self.valid_metrics = MetricTracker(writer=self.tb_writer)
 
-        if cfg_trainer["resume_checkpoint"]:
-            self._resume_checkpoint(cfg_trainer["resume_checkpoint"])
-
     @property
     def epoch(self):
         return int(self.iter // self.iters_per_epoch)
@@ -123,7 +125,26 @@ class BaseTrainer:
         # increment the iter counter to mark the comleting of training
         self.iter += 1
 
-    def _save_checkpoint(self, filename: str, save_best: bool = False) -> None:
+    def state_dict(self):
+        ret = {
+            'iteration': self.iter,
+            'optimizer': self.optimizer.state_dict(),
+            'monitor_best': self.mnt_best,
+            'config': self.config
+        }
+        if self.lr_scheduler:
+            ret['lr_scheduler'] = self.lr_scheduler.state_dict()
+        return ret
+
+    def load_state_dict(self, state_dict):
+        self.iter = state_dict['iteration'] + 1
+        self.start_iter = self.iter
+        self.mnt_best = state_dict['monitor_best']
+        self.optimizer.load_state_dict(state_dict['optimizer'])
+        if self.lr_scheduler:
+            self.lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
+
+    def _save_checkpoint(self, filename: str, save_best: bool = False, save_disk: bool = True) -> None:
         """
         Saving checkpoint, checkpoint contains:
         - iter: current iteration step
@@ -134,8 +155,12 @@ class BaseTrainer:
         
         Args:
             filename (str): filename of the saved checkpoint.
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pt'
+            save_best (bool): if True, rename the saved checkpoint to 'model_best.pt'.
+            save_dist (bool): if True, save the checkpoint to disk. Otherwise, do nothing.
         """
+        if not save_disk:
+            return
+        
         state = {
             'iter': self.iter,
             'state_dict': self.model.state_dict(),
@@ -191,23 +216,40 @@ class BaseTrainer:
         self.logger.info("Checkpoint loaded, resume training from iteration: {}".format(self.start_iter))
 
 
-class Trainer(BaseTrainer):
+class SimpleTrainer(BaseTrainer):
     """
-    Basic Trainer that is suitable for most of the training tasks.
+    Simple Trainer that is suitable for most of the training tasks.
     """
-    def __init__(self, model, train_loader, optimizer, config, device, valid_loader=None, lr_scheduler=None):
+    def __init__(self, model, train_loader, optimizer, config, valid_loader=None, lr_scheduler=None):
         super().__init__(model, optimizer, config, train_loader, valid_loader, lr_scheduler)
 
         self.use_grad_clip = config['trainer']['use_grad_clip']
         self.ema_rate = config['trainer']['ema_rate']
 
-        # resume or initialize EMA parameters if saving the EMA model
+        is_main_process = comm.is_main_process()
+        self.checkpointer = Checkpointer(
+            self.model, 
+            save_dir=self.checkpoint_dir, 
+            save_to_disk=is_main_process,
+            checkpointables=weakref.proxy(self),
+        )
+
         if self.ema_rate:
-            if config["trainer"]["resume_checkpoint"]:
-                self.resume_ema_checkpoint(config["trainer"]["resume_checkpoint"])
-            else:
-                self.model_params = list(self.model.parameters())
-                self.ema_params = copy.deepcopy(self.model_params)
+            # unwrap the model from DataParallel or DistributedDataParallel
+            model = self.get_bare_model()
+            self.model_params = list(model.parameters())
+            # initialize the EMA model
+            self.ema_model = copy.deepcopy(model)
+            self.ema_params = list(self.ema_model.parameters())
+
+        if config["trainer"]["resume_checkpoint"]:
+            self.checkpointer.load(config["trainer"]["resume_checkpoint"])
+
+    def get_bare_model(self) -> nn.Module:
+        model = self.model
+        if isinstance(self.model, (DataParallel, DistributedDataParallel)):
+            model = model.module  # type: ignore
+        return model
 
     def _update_ema(self, target_params, source_params, rate=0.99):
         for targ, src in zip(target_params, source_params):
@@ -259,14 +301,37 @@ class Trainer(BaseTrainer):
             metric = self.train_metrics
         else:
             metric = self.valid_metrics
-            
-        self.tb_writer.set_step(step, mode)
 
-        for key, loss in loss_dict.items():
-            metric.update(key, loss.detach().cpu().item())
+        loss_dict = {k: v.detach().cpu().item() for k, v in loss_dict.items()}
+        output_dict = {k: v.detach().cpu().item() for k, v in output_dict.items()}
+
+        all_loss_dict = comm.gather(loss_dict)
+        all_output_dict = comm.gather(output_dict)
+
+        if comm.is_main_process():
+            # average the losses across all processes
+            loss_dict = {
+                k: np.mean([x[k] for x in all_loss_dict]) for k in all_loss_dict[0].keys()
+            }
+            # average the outputs across all processes
+            output_dict = {
+                k: np.mean([x[k] for x in all_output_dict]) for k in all_output_dict[0].keys()
+            }
+
+            total_losses_reduced = sum(loss_dict.values())
+            if not np.isfinite(total_losses_reduced):
+                raise FloatingPointError(
+                    f"Loss became infinite or NaN at iteration={self.iter}!\n"
+                    f"loss_dict = {loss_dict}"
+                )
+            
+            self.tb_writer.set_step(step, mode)
+
+            for key, loss in loss_dict.items():
+                metric.update(key, loss)
         
-        for key, output in output_dict.items():
-            metric.update(key, output)
+            for key, output in output_dict.items():
+                metric.update(key, output)
 
     def after_step(self):
         super().after_step()
@@ -296,8 +361,9 @@ class Trainer(BaseTrainer):
 
         # after saving the checkpoint, reset the metric tracker.
         if self.iter % self.log_period == 0:
-            self.train_metrics.reset()
-            self.valid_metrics.reset()
+            if comm.is_main_process():
+                self.train_metrics.reset()
+                self.valid_metrics.reset()
     
     def resume_ema_checkpoint(self, resume_path: str):
         # find ema checkpoint
@@ -361,17 +427,17 @@ class Trainer(BaseTrainer):
                 self.mnt_best = result[self.mnt_metric]
                 best = True
 
+        # only save to disk in the main process
         filename = "model_{}.pt".format(self.iter)
-        self._save_checkpoint(filename, save_best=best)
-        
-        if self.ema_rate:
-            ema_filename = f"ema_{self.ema_rate}_{self.iter}.pt"
-            self._save_ema_checkpoint(ema_filename, save_best=best)
+        self.checkpointer.save(filename, save_best=best)
 
-    def _save_ema_checkpoint(self, filename: str, save_best: bool = False):
+    def _save_ema_checkpoint(self, filename: str, save_best: bool = False, save_disk: bool = True):
         """
         Save the state dict of the EMA model along with other training states.
         """
+        if not save_disk:
+            return
+        
         state_dict = self.model.state_dict()
         for i, (name, _value) in enumerate(self.model.named_parameters()):
             assert name in state_dict
@@ -394,7 +460,8 @@ class Trainer(BaseTrainer):
             best_path = os.path.join(self.checkpoint_dir, f'ema_{self.ema_rate}_best.pt')
             torch.save(state, best_path)
             self.logger.info("Saving current best to: {} ...".format(best_path))
-
+    
+    @comm.master_only
     def clear_checkpoints(self):
         """
         Remove earlier checkpoints and keep exactly `self.save_last` checkpoints
@@ -409,13 +476,23 @@ class Trainer(BaseTrainer):
         checkpoint_paths = sorted(checkpoint_paths, key=lambda x: os.path.getmtime(x))
         
         assert self.save_last > 0 and isinstance(self.save_last, int)
-        # if save ema model, keep both the last n model checkpoints and ema checkpoints.
-        save_last = self.save_last * 2 if self.ema_rate else self.save_last
-
-        checkpoints_to_clear = checkpoint_paths[:-save_last]
+        checkpoints_to_clear = checkpoint_paths[:-self.save_last]
+        
         for path in checkpoints_to_clear:
             os.remove(path)
 
+    def state_dict(self):
+        ret = super().state_dict()
+        if self.ema_rate:
+            ret["ema_model"] = self.ema_model.state_dict()
+    
+    def load_state_dict(self, state_dict):
+        super().load_state_dict(state_dict)
+        if self.ema_rate:
+            self.logger.info("Loading EMA model from checkpoint...")
+            missing_keys, unexpected_keys = Checkpointer.load_state_dict(self.ema_model, state_dict["ema_model"])
+            assert missing_keys == [] and unexpected_keys == [], "Error: EMA model's state dict is not compatible with the checkpoint."
+    
     @torch.no_grad()
     def do_eval(self):
         self.model.eval()

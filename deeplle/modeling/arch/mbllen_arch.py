@@ -2,11 +2,11 @@
 from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
-from deepisp.modeling.build import MODEL_REGISTRY
-from deepisp.modeling.arch.base import BaseISPModel
-from deepisp.modeling.backbone import MBLLEN
-from deepisp.modeling import processing
-from deepisp.modeling.losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss
+from deeplle.modeling.build import MODEL_REGISTRY
+from deeplle.modeling.arch.base import BaseISPModel
+from deeplle.modeling.backbone import MBLLEN
+from deeplle.modeling import processing
+from deeplle.modeling.losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss
 
 
 @MODEL_REGISTRY.register()

@@ -11,7 +11,6 @@ import logging
 __all__ = ['build_batch_data_loader', 'build_train_loader', 'build_test_loader']
 
 
-
 def build_batch_data_loader(
     dataset,
     sampler,

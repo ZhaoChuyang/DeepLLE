@@ -1,8 +1,8 @@
 import cv2
 import torch
 import numpy as np
-from deepisp.modeling.metrics.build import METRIC_REGISTRY
-from deepisp.modeling.metrics.util import reorder_image, to_y_channel
+from deeplle.modeling.metrics.build import METRIC_REGISTRY
+from deeplle.modeling.metrics.util import reorder_image, to_y_channel
 import torch.nn.functional as F
 
 

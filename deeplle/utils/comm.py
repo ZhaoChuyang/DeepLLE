@@ -190,3 +190,15 @@ def reduce_dict(input_dict, average=True):
             values /= world_size
         reduced_dict = {k: v for k, v in zip(names, values)}
     return reduced_dict
+
+
+def master_only(func):
+    """
+    Used as decorator, only calling func when in master process.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if is_main_process():
+            return func(*args, **kwargs)
+    
+    return wrapper

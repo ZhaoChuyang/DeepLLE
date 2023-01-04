@@ -1,11 +1,13 @@
-# Created on Mon Oct 10 2022 by Chuyang Zhao
+# Created on Wed Jan 04 2023 by Chuyang Zhao
 from typing import Optional, List
 import torch
 from torch.utils.data.sampler import Sampler
-import copy
-import random
+import itertools
 
 from deeplle.utils import comm
+
+
+__all__ = ["TrainingSampler", "InferenceSampler", "BalancedSampler"]
 
 
 class TrainingSampler(Sampler):
@@ -36,13 +38,17 @@ class TrainingSampler(Sampler):
         
         self._size = size
         self._shuffle = shuffle
-
         if seed is None:
-            self._seed = utils.get_seed()
+            seed = comm.shared_random_seed()
+        self._seed = int(seed)
+
+        self._rank = comm.get_rank()
+        self._world_size = comm.get_world_size()
 
     def __iter__(self):
-        yield from self._infinite_indices()
-        
+        start = self._rank
+        yield from itertools.islice(self._infinite_indices(), start, None, self._world_size)
+    
     def _infinite_indices(self):
         g = torch.Generator()
         g.manual_seed(self._seed)
@@ -64,12 +70,19 @@ class BalancedSampler(Sampler):
         self._shuffle = shuffle
 
         if seed is None:
-            self._seed = utils.get_seed()
+            seed = comm.shared_random_seed()
+        self._seed = int(seed)
+
+        self._rank = comm.get_rank()
+        self._world_size = comm.get_world_size()
 
         self.dataset_sizes = dataset_sizes
         self.buffer_size = buffer_size
     
     def _infinite_indices(self):
+        g = torch.Generator()
+        g.manual_seed(self._seed)
+
         counters = [0] * len(self.dataset_sizes)
         while True:
             indices = []
@@ -83,43 +96,14 @@ class BalancedSampler(Sampler):
                 base_num += dataset_size
 
             if self._shuffle:
-                random.shuffle(indices)
+                indices = torch.tensor(indices, dtype=torch.int64)
+                yield from indices[torch.randperm(indices.size(0), generator=g)].tolist()
+            else:
+                yield from indices
 
-            yield from indices
-
-    def _get_dataset_mult_factors(self, nums: List[int]):
-        """
-        use of `_get_dataset_mult_factors` is deprecated, because the generated indices is too large to load in memory.
-        """
-        if len(nums) == 1: return [nums[0]]
-
-        # calculate the greatest common factor of nums
-        _nums = copy.copy(nums)
-
-        while len(_nums) >= 2:
-            a = _nums.pop()
-            b = _nums.pop()
-
-            factor = self._gcd(a, b)
-            _nums.append(factor)
-        
-        factor = _nums[0]
-
-        # buffer_size = factor
-        factors = []
-        for n in nums:
-            factors.append(n // factor)
-            # buffer_size *=  (n // factor)
-        # buffer_size *= len(nums)
-        
-        return factors
-
-    def _gcd(self, a: int, b: int) -> int:
-        if b == 0: return a
-        return self._gcd(b, a % b)
-    
     def __iter__(self):
-        yield from self._infinite_indices()
+        start = self._rank
+        yield from itertools.islice(self._infinite_indices(), start, None, self._world_size)
 
                 
 class InferenceSampler(Sampler):
@@ -129,21 +113,28 @@ class InferenceSampler(Sampler):
     The stream the inference sampler created is not infinite.
     """
     def __init__(self, size: int):
+        """
+        Args:
+            size (int): the total number of data of the underlying dataset to sample from
+        """
         self._size = size
-        self._indices = torch.arange(self._size).tolist()
+        assert self._size > 0
+        self._rank = comm.get_rank()
+        self._world_size = comm.get_world_size()
+        self._local_indices = self._get_local_indices(size, self._world_size, self._rank)
+
+    @staticmethod
+    def _get_local_indices(total_size, world_size, rank):
+        shard_size = total_size // world_size
+        left = total_size % world_size
+        shard_sizes = [shard_size + int(r < left) for r in range(world_size)]
+
+        begin = sum(shard_sizes[:rank])
+        end = min(sum(shard_sizes[: rank + 1]), total_size)
+        return range(begin, end)
 
     def __iter__(self):
-        yield from self._indices
+        yield from self._local_indices
 
     def __len__(self):
-        return self._size
-
-
-if __name__ == '__main__':
-    """
-    Test BalancedSampler, run with:
-        python -m deepisp.data.samplers.train_sampler
-    """
-    sampler = BalancedSampler([3, 4, 5], buffer_size=10)
-    from IPython import embed
-    embed()
+        return len(self._local_indices)

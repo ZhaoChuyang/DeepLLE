@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from deepisp.modeling.metrics.build import METRIC_REGISTRY
+from deeplle.modeling.metrics.build import METRIC_REGISTRY
 
 
 @METRIC_REGISTRY.register()

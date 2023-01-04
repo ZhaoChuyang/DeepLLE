@@ -5,14 +5,7 @@ import time
 import glob
 import pathlib
 import socket
-import torch
 from typing import List
-import numpy as np
-
-
-# If you don't set the seed manually, will use current timestamp
-# as the seed for random number generator.
-_seed = int(time.time())
 
 
 def read_json(path: str):
@@ -71,16 +64,6 @@ def mkdirs(dirpath: str):
         dirpath (str): path of the target directory.
     """
     pathlib.Path(dirpath).mkdir(parents=True, exist_ok=True)
-
-
-def set_seed(seed: int):
-    global _seed
-    _seed = int(seed)
-
-
-def get_seed():
-    global _seed
-    return _seed
 
 
 def get_ip_address():

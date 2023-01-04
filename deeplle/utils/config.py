@@ -1,12 +1,20 @@
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import os
-from . import read_json
+from deeplle.utils import read_json
 from ast import literal_eval
 from typing import Dict, List
+import torch
 import copy
 
 
 __all__ = ["init_config"]
+
+
+class Config:
+    """
+    Points to the root of the config directory.
+    """
+    CONFIG_DIR: str = None
 
 
 def _convert_from_string(string: str):
@@ -40,6 +48,7 @@ def init_config(args):
 
     # Step 1: read config.
     config = read_json(args.config)
+    Config.CONFIG_DIR = os.path.dirname(args.config)
 
     # Step 2: merge with base config.
     if "base" in config:
@@ -48,8 +57,10 @@ def init_config(args):
     # Step 3: merge with command line options.
     if args.opts:
         config = _merge_config_with_opts(config, args.opts)
-    
+
     # Step 4: computing and updating configurations
+    config["model"]["device"] = "cuda" if torch.cuda.is_available() else "cpu"
+
     config["trainer"]["save_dir"] = os.path.abspath(config["trainer"]["save_dir"])
     config["trainer"]["ckp_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "checkpoints")
     config["trainer"]["log_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "log")
@@ -76,7 +87,7 @@ def _merge_base_config(config: Dict) -> Dict:
     if not config.get("base", None):
         return config
 
-    base_config = read_json(config["base"])
+    base_config = read_json(os.path.join(Config.CONFIG_DIR, config["base"]))
     base_config = _merge_base_config(base_config)
     
     merged_config = _merge_dicts(config, base_config)
