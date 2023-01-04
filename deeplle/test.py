@@ -10,10 +10,10 @@ import numpy as np
 import cv2
 import tqdm
 
-from deepisp.utils import init_config, check_path_exists, check_path_is_image
-from deepisp.modeling import build_model
-from deepisp.modeling.metrics import build_metric
-from deepisp.data import build_transforms, build_test_loader, CommISPDataset
+from deeplle.utils import init_config, check_path_exists, check_path_is_image
+from deeplle.modeling import build_model
+from deeplle.modeling.metrics import build_metric
+from deeplle.data import build_transforms, build_test_loader, CommISPDataset
 
 
 def build_test_model(cfg_model, device):

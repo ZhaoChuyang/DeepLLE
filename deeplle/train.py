@@ -7,11 +7,11 @@ from torch import nn
 import logging
 import json
 
-from deepisp.utils import init_config, setup_logger, mkdirs, get_ip_address
-from deepisp.engine.trainer import Trainer
-from deepisp.modeling import build_model
-from deepisp.data import build_transforms, build_train_loader, build_test_loader
-from deepisp.solver import build_optimizer, build_lr_scheduler
+from deeplle.utils import init_config, setup_logger, mkdirs, get_ip_address
+from deeplle.engine.trainer import Trainer
+from deeplle.modeling import build_model
+from deeplle.data import build_transforms, build_train_loader, build_test_loader
+from deeplle.solver import build_optimizer, build_lr_scheduler
 
 
 class ISPTrainer(Trainer):

@@ -4,13 +4,19 @@ import torch
 from torch.utils.data.sampler import Sampler
 import copy
 import random
-from ... import utils
+
+from deeplle.utils import comm
 
 
 class TrainingSampler(Sampler):
     """
     In training, we only care about the "infinite stream" of training data.
     So this sampler produces an infinite stream of indices.
+
+    The samplers in each worker effectively produces `indices[worker_id::num_workers]`
+    where `indices` is an infinite stream of indices consisting of
+    `shuffle(range(size)) + shuffle(range(size)) + ...` (if shuffle is True)
+    or `range(size) + range(size) + ...` (if shuffle is False)
 
     For any map-style dataset, we need to convert it to IterableDataset using
     this sampler in order to get infinite stream.

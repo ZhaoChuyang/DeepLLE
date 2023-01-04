@@ -1,3 +1,3 @@
-# DeepISP
+# DeepLLE
 
-Training framework for deep learning based image signal processing (ISP) solutions.
+Distributed Deep Learning framework for Low-light Image/Video Enhancement.
