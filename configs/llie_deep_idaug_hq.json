@@ -113,6 +113,7 @@
 
     "test": {
         "resume_checkpoint": "model_best.pt",
+        "resume_ema_model": true,
         "metrics": [
             {
                 "name": "MAE",
@@ -131,7 +132,7 @@
 
     "infer": {
         "data": {
-            "img_dir": "/home/chuyang/Workspace/datasets/realcap",
+            "img_dir": "/home/zcy_2021/data/LOL/eval15",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -142,7 +143,8 @@
             ]
         },
         "resume_checkpoint": "model_best.pt",
-        "save_dir": "realcap",
+        "resume_ema_model": false,
+        "save_dir": "",
         "save_pair": true
     }
 }

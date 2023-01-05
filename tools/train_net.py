@@ -1,8 +1,8 @@
+# Created on Thu Jan 06 2023 by Chuyang Zhao
 import os
 import sys
 import json
 import argparse
-import torch
 from deeplle.engine.launch import launch
 from deeplle.engine.trainer import SimpleTrainer
 from deeplle.utils.logger import setup_logger
@@ -65,7 +65,6 @@ Run on multiple machines:
         nargs=argparse.REMAINDER,
     )
     return parser
-
 
 
 class DefaultISPTrainer(SimpleTrainer):

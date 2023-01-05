@@ -147,57 +147,46 @@ class Checkpointer:
         return missing_keys, unexpected_keys
 
     @staticmethod
-    def resume_checkpoint(model, resume_path: str, prefix="") -> None:
+    def resume_checkpoint(model, resume_path: str, ema_model: bool = False, prefix: str = "") -> None:
         """
         Resume model's checkpoint from given path.
 
         Args:
             model (nn.Module): model to be resumed.
             resume_path (str): path to the checkpoint.
+            ema_model (bool): whether to resume the EMA model's checkpoint.
             prefix (str): prefix to remove from keys.
         """
         logger = logging.getLogger(__name__)
         assert check_path_exists(resume_path), "Resume path does not exist: {}".format(resume_path)
 
-        logger.info("Loading checkpoint from {} ...".format(resume_path))
-        state_dict = torch.load(resume_path, map_location="cpu")["state_dict"]
-        missing_keys, unexpected_keys = load_state_dict(model, state_dict, prefix=prefix)
-        logger.info("Model's state dict loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
+        logger.info("Loading {} checkpoint from {} ...".format("EMA model" if ema_model else "model", resume_path))
+        checkpoint = torch.load(resume_path, map_location="cpu")
+        
+        if ema_model:
+            assert "ema_model" in checkpoint["trainer"], "state dict of the EMA model not found in checkpoint."
+            state_dict = checkpoint["trainer"]["ema_model"]
+        else:
+            state_dict = checkpoint["model"]
+        
+        missing_keys, unexpected_keys = Checkpointer.load_state_dict(model, state_dict, prefix=prefix)
+        
+        if missing_keys or unexpected_keys:
+            logger.warning("Checkpoint loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
+        else:
+            logger.info("Model's state dict successfully loaded.")
 
+    @staticmethod
+    def get_bare_model(model):
+        """
+        Get the bare model from a wrapped model.
 
+        Args:
+            model (nn.Module): model to be resumed.
 
-def load_state_dict(model, state_dict, prefix=""):
-    """
-    Load model's state dict from given state_dict.
-
-    Args:
-        model (nn.Module): model to be resumed.
-        state_dict (OrderedDict): state_dict to be loaded.
-        prefix (str): prefix to remove from keys.
-    """
-    keys = sorted(state_dict.keys())
-    for key in keys:
-        if key.startswith(prefix):
-            new_key = key[len(prefix):]
-            state_dict[new_key] = state_dict.pop(key)
-
-    missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-    return missing_keys, unexpected_keys
-    
-
-def resume_checkpoint(model, resume_path, prefix=""):
-    """
-    Resume model's checkpoint from in given path.
-
-    Args:
-        model (nn.Module): model to be resumed.
-        resume_path (str): path to the checkpoint.
-        prefix (str): prefix to remove from keys.
-    """
-    logger = logging.getLogger(__name__)
-    assert check_path_exists(resume_path), "Resume path does not exist: {}".format(resume_path)
-
-    logger.info("Loading checkpoint from {} ...".format(resume_path))
-    state_dict = torch.load(resume_path, map_location="cpu")["state_dict"]
-    missing_keys, unexpected_keys = load_state_dict(model, state_dict, prefix=prefix)
-    logger.info("Model's state dict loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
+        Returns:
+            nn.Module: bare model
+        """
+        if isinstance(model, (DistributedDataParallel, DataParallel)):
+            return model.module
+        return model

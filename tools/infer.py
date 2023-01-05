@@ -3,22 +3,19 @@ import argparse
 import os
 import sys
 import torch
-from torch import nn
-from collections import defaultdict
 import json
-from typing import Dict, List, Callable, Any
+from typing import Optional, Any
 import numpy as np
 import cv2
 import tqdm
 
-from deeplle.utils import init_config
-from deeplle.utils.checkpoint import Checkpointer
-from deeplle.utils import image_ops, comm
-from deeplle.utils.logger import setup_logger
 from deeplle.engine.launch import launch
+from deeplle.utils import init_config, mkdirs, check_path_exists, check_path_is_image, comm
+from deeplle.utils.checkpoint import Checkpointer
+from deeplle.utils.logger import setup_logger
+from deeplle.utils.image_ops import save_image
 from deeplle.modeling import build_model, create_ddp_model
-from deeplle.modeling.metrics import build_metric
-from deeplle.data import build_transforms, build_test_loader
+from deeplle.data import build_transforms, build_test_loader, CommISPDataset
 
 
 def default_argument_parser(epilog=None):
@@ -90,33 +87,57 @@ def resume_checkpoint(model: Any, path: str, ema_model: bool = False):
     Checkpointer.resume_checkpoint(model=model, resume_path=path, ema_model=ema_model)
 
 
-def build_data_loader(cfg_test_factory):
-    transforms = build_transforms(cfg_test_factory["transforms"])
+def build_data_loader(config):
+    cfg_infer_factory = config["infer"]["data"]
+    transforms = build_transforms(cfg_infer_factory["transforms"])
 
-    dataloader = build_test_loader(
-        names=cfg_test_factory["names"],
-        batch_size=cfg_test_factory["batch_size"],
-        num_workers=cfg_test_factory["num_workers"],
-        transforms=transforms
-    )
-
+    dataset_dicts = load_data(cfg_infer_factory["img_dir"], config["infer"]["save_dir"])
+    dataset = CommISPDataset(dataset_dicts, False, transforms)
+    dataloader = build_test_loader(dataset=dataset, batch_size=cfg_infer_factory["batch_size"], num_workers=cfg_infer_factory["num_workers"])
     return dataloader
 
 
-def build_test_metrics(cfg_metrics: List) -> Dict:
-    metrics = {}
+def read_images_from_dir(img_dir):
+    """
+    Read all images in img_dir.
 
-    for cfg in cfg_metrics:
-        if isinstance(cfg, str):
-            name = cfg
-            args = {}
-        else:
-            name = cfg["name"]
-            args = cfg["args"]
-        metric_fn = build_metric(name, args)
-        metrics[name] = metric_fn
+    Deprecated: use load_data instead.
+    """
+    dataset_dicts = []
+    for filename in os.listdir(img_dir):
+        path = os.path.join(img_dir, filename)
+        if not check_path_is_image(path): continue
+        record = {'image_path': path}
+        dataset_dicts.append(record)
+    return dataset_dicts
 
-    return metrics
+
+def load_data(img_dir: str, save_dir: str):
+    """
+    Load all images in img_dir recursively and create corresponding 
+    directories rooted in the save_dir if any image is found.
+
+    Args:
+        img_dir (str): root directoy path of the input images.
+        save_dir (str): root directory of the saved images.
+    """
+    dataset_dicts = []
+    for root, _, files in os.walk(img_dir):
+        for filename in files:
+            if check_path_is_image(filename):
+                relative_dir = root[len(img_dir):]
+                if relative_dir.startswith("/"): relative_dir = relative_dir[1:]
+                output_dir = os.path.join(save_dir, relative_dir)
+                
+                if not check_path_exists(output_dir):
+                    mkdirs(output_dir)
+                
+                input_path = os.path.join(root, filename)
+                output_path = os.path.join(output_dir, filename)
+                record = {'image_path': input_path, "save_path": output_path}
+                dataset_dicts.append(record)
+    
+    return dataset_dicts
 
 
 def post_process(image: np.array, maxrange: float=0.8, highpercent: int=95, lowpercent: int=5, hsvgamma: float=0.8):
@@ -149,9 +170,14 @@ def post_process(image: np.array, maxrange: float=0.8, highpercent: int=95, lowp
 
 
 @torch.no_grad()
-def test(dataloader, model, metrics: List[Dict[str, Callable]]):
-    results = defaultdict(list)
+def infer(model, dataloader, save_pair: bool = False):
+    """
+    Inference function.
 
+    Args:
+        model (nn.Module): model to be tested.
+        dataloader (DataLoader): dataloader for inference.
+    """
     if comm.is_main_process():
         indices = tqdm.tqdm(dataloader, total=len(dataloader))
     else:
@@ -159,44 +185,36 @@ def test(dataloader, model, metrics: List[Dict[str, Callable]]):
     
     for data in indices:
         outputs = model(data)
+
         for output, record in zip(outputs, data):
-            target = record["target"]
-            target = image_ops.convert_to_image(target)
-            output = image_ops.convert_to_image(output)
-
-            for metric_name, metric_fn in metrics.items():
-                results[metric_name].append(metric_fn(output, target))
-    
-    return results
-
+            save_path = record["save_path"]
+            input_image = record["image"] if save_pair else None
+            save_image(save_path, output, input_image=input_image)
 
 
 def main(args):
+    # initialize config
     config = init_config(args)
 
+    # create the test output directory if it does not exist.
+    mkdirs(config["infer"]["save_dir"])
+
+    # setup logger
     rank = comm.get_rank()
     setup_logger(output=config["trainer"]["log_dir"], distributed_rank=rank, name="deeplle")
-    logger = setup_logger(output=config["trainer"]["log_dir"], distributed_rank=rank, name="deeplle.testing")
+    logger = setup_logger(output=config["trainer"]["log_dir"], distributed_rank=rank, name="deeplle.inference")
 
     logger.info(f"Configuration:\n{json.dumps(config, indent=4)}")
 
+    # build model
     model = build_test_model(config["model"])
-    resume_checkpoint(model, config["test"]["resume_checkpoint"], config["test"]["resume_ema_model"])
+    resume_checkpoint(model, config["infer"]["resume_checkpoint"])
 
-    metrics = build_test_metrics(config["test"]["metrics"])
+    # build dataloader
+    dataloader = build_data_loader(config)
 
-    # build test dataloader
-    cfg_test_factory = config["data_factory"]["test"]
-    logger.info(f"=====> Testing on {cfg_test_factory['names']} datasets")
-    dataloader = build_data_loader(cfg_test_factory)
-
-    results = test(dataloader, model, metrics)
-    all_results = comm.gather(results)
-
-    if comm.is_main_process():
-        results = {k: np.mean([r[k] for r in all_results], axis=0) for k in all_results[0].keys()}
-        for metric_name, records in results.items():
-            logger.info(f"{metric_name} : {sum(records) / len(records)}")
+    # do inference and save the results
+    infer(model, dataloader, save_pair=config["infer"]["save_pair"])
 
 
 if __name__ == '__main__':

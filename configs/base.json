@@ -60,7 +60,7 @@
         "metrics": []
    },
 
-   "inference": {
+   "infer": {
         "data": {
             "img_dir": "",
             "batch_size": 1,

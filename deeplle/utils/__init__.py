@@ -4,4 +4,3 @@ from .config import *
 from .logger import *
 from .tracker import *
 from .registry import Registry
-from .checkpoint import load_state_dict, resume_checkpoint

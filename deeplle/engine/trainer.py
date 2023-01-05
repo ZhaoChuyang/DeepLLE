@@ -10,7 +10,7 @@ import torch
 from torch import nn
 import numpy as np
 from numpy import inf
-from deeplle.utils import TensorboardWriter, MetricTracker, check_path_exists, comm
+from deeplle.utils import TensorboardWriter, MetricTracker, comm
 from deeplle.utils.checkpoint import Checkpointer
 from torch.nn.parallel import DistributedDataParallel, DataParallel
 
@@ -144,77 +144,6 @@ class BaseTrainer:
         if self.lr_scheduler:
             self.lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
 
-    def _save_checkpoint(self, filename: str, save_best: bool = False, save_disk: bool = True) -> None:
-        """
-        Saving checkpoint, checkpoint contains:
-        - iter: current iteration step
-        - state_dict: state dict of the model
-        - optimizer: state dict of the optimizer
-        - moniter_best: currently monitered best score
-        - config: config dict
-        
-        Args:
-            filename (str): filename of the saved checkpoint.
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pt'.
-            save_dist (bool): if True, save the checkpoint to disk. Otherwise, do nothing.
-        """
-        if not save_disk:
-            return
-        
-        state = {
-            'iter': self.iter,
-            'state_dict': self.model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'lr_scheduler': self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
-            'monitor_best': self.mnt_best,
-            'config': self.config
-        }
-        
-        path = os.path.join(self.checkpoint_dir, filename)
-        torch.save(state, path)
-        self.logger.info("Saving checkpoint to: {} ...".format(path))
-        
-        if save_best:
-            best_path = os.path.join(self.checkpoint_dir, 'model_best.pt')
-            torch.save(state, best_path)
-            self.logger.info("Saving current best to: {} ...".format(best_path))
-
-
-    def _resume_checkpoint(self, resume_path: str) -> None:
-        """
-        Resume training from saved checkpoint. Information saved in checkpoint includes:
-        - iter: current iteration
-        - mnt_best: best score monitered
-        - state_dict: state dict of the trained model
-        - optimizer: state dict of the optimizer
-
-        Args:
-            resume_path (str): checkpoint path to be resumed.
-        """
-        if not check_path_exists(resume_path):
-            raise FileNotFoundError("Checkpoint to resume was not found in {}".format(resume_path))
-                
-        self.logger.info("Loading checkpoint: {}...".format(resume_path))
-        checkpoint = torch.load(resume_path)
-
-        self.iter = checkpoint['iter'] + 1
-        self.start_iter = checkpoint['iter'] + 1
-        self.mnt_best = checkpoint['monitor_best']
-
-        missing_keys, unexpected_keys = self.model.load_state_dict(checkpoint['state_dict'])
-        
-        self.logger.info("Model's state dict loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
-
-        try:
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-        except:
-            self.logger.warning("Warning: Failed to read the state dict of the optimizer.")
-
-        if self.lr_scheduler:
-            self.lr_scheduler.last_epoch = self.iter - 2
-
-        self.logger.info("Checkpoint loaded, resume training from iteration: {}".format(self.start_iter))
-
 
 class SimpleTrainer(BaseTrainer):
     """
@@ -231,7 +160,7 @@ class SimpleTrainer(BaseTrainer):
             self.model, 
             save_dir=self.checkpoint_dir, 
             save_to_disk=is_main_process,
-            checkpointables=weakref.proxy(self),
+            trainer=weakref.proxy(self),
         )
 
         if self.ema_rate:
@@ -364,33 +293,6 @@ class SimpleTrainer(BaseTrainer):
             if comm.is_main_process():
                 self.train_metrics.reset()
                 self.valid_metrics.reset()
-    
-    def resume_ema_checkpoint(self, resume_path: str):
-        # find ema checkpoint
-        model_filename = resume_path.split("/")[-1]
-        save_dir = os.path.dirname(resume_path)
-        
-        is_best = "best" in model_filename
-        if is_best:
-            ema_filename = f"ema_{self.ema_rate}_best.pt"
-        else:
-            step = model_filename.split(".")[0].split("_")[-1]
-            ema_filename = f"ema_{self.ema_rate}_{step}.pt"
-        
-        ema_path = os.path.join(save_dir, ema_filename)
-        if not check_path_exists(ema_path):
-            raise FileNotFoundError(f"EMA checkpoint was not found in: {ema_path}")
-        
-        self.logger.info("Loading EMA checkpoint: {}...".format(ema_path))
-        checkpoint = torch.load(ema_path)
-
-        state_dict = checkpoint["state_dict"]
-
-        # convert state dict to model parameters
-        self.ema_params = [state_dict[name] for name, _ in self.model.named_parameters()]
-        self.model_params = list(self.model.parameters())
-
-        self.logger.info("EMA checkpoint loaded.")
 
     def save_checkpoint(self):
         """
@@ -430,36 +332,6 @@ class SimpleTrainer(BaseTrainer):
         # only save to disk in the main process
         filename = "model_{}.pt".format(self.iter)
         self.checkpointer.save(filename, save_best=best)
-
-    def _save_ema_checkpoint(self, filename: str, save_best: bool = False, save_disk: bool = True):
-        """
-        Save the state dict of the EMA model along with other training states.
-        """
-        if not save_disk:
-            return
-        
-        state_dict = self.model.state_dict()
-        for i, (name, _value) in enumerate(self.model.named_parameters()):
-            assert name in state_dict
-            state_dict[name] = self.ema_params[i]
-        
-        state = {
-            'iter': self.iter,
-            'state_dict': state_dict,
-            'optimizer': self.optimizer.state_dict(),
-            'lr_scheduler': self.lr_scheduler.state_dict() if self.lr_scheduler is not None else None,
-            'monitor_best': self.mnt_best,
-            'config': self.config
-        }
-        
-        path = os.path.join(self.checkpoint_dir, filename)
-        torch.save(state, path)
-        self.logger.info("Saving checkpoint to: {} ...".format(path))
-        
-        if save_best:
-            best_path = os.path.join(self.checkpoint_dir, f'ema_{self.ema_rate}_best.pt')
-            torch.save(state, best_path)
-            self.logger.info("Saving current best to: {} ...".format(best_path))
     
     @comm.master_only
     def clear_checkpoints(self):
@@ -485,6 +357,7 @@ class SimpleTrainer(BaseTrainer):
         ret = super().state_dict()
         if self.ema_rate:
             ret["ema_model"] = self.ema_model.state_dict()
+        return ret
     
     def load_state_dict(self, state_dict):
         super().load_state_dict(state_dict)
