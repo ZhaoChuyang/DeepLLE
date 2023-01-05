@@ -1,3 +1,3 @@
 # DeepLLE
 
-Distributed Deep Learning framework for Low-light Image/Video Enhancement.
+Distributed PyTorch Training Framework for Low-light Image/Video Enhancement.

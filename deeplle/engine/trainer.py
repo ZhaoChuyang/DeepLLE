@@ -11,6 +11,7 @@ from torch import nn
 import numpy as np
 from numpy import inf
 from deeplle.utils import TensorboardWriter, MetricTracker, comm
+from deeplle.utils.nn_utils import get_model_info
 from deeplle.utils.checkpoint import Checkpointer
 from torch.nn.parallel import DistributedDataParallel, DataParallel
 
@@ -143,6 +144,8 @@ class BaseTrainer:
         self.optimizer.load_state_dict(state_dict['optimizer'])
         if self.lr_scheduler:
             self.lr_scheduler.load_state_dict(state_dict['lr_scheduler'])
+        
+        self.logger.info("Resume training from iteration {}".format(self.iter))
 
 
 class SimpleTrainer(BaseTrainer):
@@ -151,6 +154,8 @@ class SimpleTrainer(BaseTrainer):
     """
     def __init__(self, model, train_loader, optimizer, config, valid_loader=None, lr_scheduler=None):
         super().__init__(model, optimizer, config, train_loader, valid_loader, lr_scheduler)
+
+        self.print_network()
 
         self.use_grad_clip = config['trainer']['use_grad_clip']
         self.ema_rate = config['trainer']['ema_rate']
@@ -173,6 +178,12 @@ class SimpleTrainer(BaseTrainer):
 
         if config["trainer"]["resume_checkpoint"]:
             self.checkpointer.load(config["trainer"]["resume_checkpoint"])
+
+    @comm.master_only
+    def print_network(self):
+        model_info, num_params = get_model_info(self.model)
+        self.logger.info(f"Model Information:\n{model_info}")
+        self.logger.info(f"Number of model's parameters: {num_params}")
 
     def get_bare_model(self) -> nn.Module:
         model = self.model

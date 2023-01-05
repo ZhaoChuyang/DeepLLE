@@ -8,6 +8,7 @@ from deeplle.engine.trainer import SimpleTrainer
 from deeplle.utils.logger import setup_logger
 from deeplle.utils import comm
 from deeplle.utils import mkdirs, get_ip_address, init_config
+from deeplle.utils.nn_utils import get_model_info
 from deeplle.modeling import build_model, create_ddp_model
 from deeplle.solver import build_optimizer, build_lr_scheduler
 from deeplle.data import build_transforms, build_train_loader, build_test_loader

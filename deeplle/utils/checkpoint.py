@@ -175,18 +175,3 @@ class Checkpointer:
             logger.warning("Checkpoint loaded, missing keys: {}, unexpected keys: {}".format(missing_keys, unexpected_keys))
         else:
             logger.info("Model's state dict successfully loaded.")
-
-    @staticmethod
-    def get_bare_model(model):
-        """
-        Get the bare model from a wrapped model.
-
-        Args:
-            model (nn.Module): model to be resumed.
-
-        Returns:
-            nn.Module: bare model
-        """
-        if isinstance(model, (DistributedDataParallel, DataParallel)):
-            return model.module
-        return model

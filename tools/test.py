@@ -15,6 +15,7 @@ from deeplle.utils import init_config
 from deeplle.utils.checkpoint import Checkpointer
 from deeplle.utils import image_ops, comm
 from deeplle.utils.logger import setup_logger
+from deeplle.utils.nn_utils import get_bare_model
 from deeplle.engine.launch import launch
 from deeplle.modeling import build_model, create_ddp_model
 from deeplle.modeling.metrics import build_metric
@@ -86,7 +87,7 @@ def resume_checkpoint(model: Any, path: str, ema_model: bool = False):
         path (str): path to checkpoint file.
         ema_model (bool): whether to resume the ema model.
     """
-    model = Checkpointer.get_bare_model(model)
+    model = get_bare_model(model)
     Checkpointer.resume_checkpoint(model=model, resume_path=path, ema_model=ema_model)
 
 

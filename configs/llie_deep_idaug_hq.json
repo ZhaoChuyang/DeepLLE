@@ -86,7 +86,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "_resume_checkpoint": "model_best.pt",
+        "resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
     },
 
