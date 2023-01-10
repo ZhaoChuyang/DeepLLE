@@ -24,6 +24,16 @@ class BaseTrainer:
         self.config = config
         self.logger = logging.getLogger(__name__)
 
+        cfg_trainer = config['trainer']
+        self.epochs: int = int(cfg_trainer['epochs'])
+        self.saved_period: int = int(cfg_trainer['saved_period'])
+        self.save_last: int = int(cfg_trainer['save_last'])
+        self.eval_period: int = int(cfg_trainer['eval_period'])
+        self.log_period: int = int(cfg_trainer['log_period'])
+        self.monitor: str = cfg_trainer['monitor']
+        self.max_eval_iters: int = int(cfg_trainer["max_eval_iters"])
+        self.iters_per_epoch: int = int(cfg_trainer["iters_per_epoch"])
+
         self.model = model
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
@@ -31,19 +41,10 @@ class BaseTrainer:
         self._train_loader_iter = iter(self.train_loader)
 
         self.valid_loader = valid_loader
-        self.do_validation = False if self.valid_loader is None else True
+        # do not evaluate on validation set if valid loader is not provided or eval_period <= 0
+        self.do_validation = False if self.valid_loader is None or self.eval_period <= 0 else True
         if self.do_validation:
             self._valid_loader_iter = iter(self.valid_loader)
-
-        cfg_trainer = config['trainer']
-        self.epochs = cfg_trainer['epochs']
-        self.saved_period = cfg_trainer['saved_period']
-        self.save_last = cfg_trainer['save_last']
-        self.eval_period = cfg_trainer['eval_period']
-        self.log_period = cfg_trainer['log_period']
-        self.monitor = cfg_trainer['monitor']
-        self.max_eval_iters = cfg_trainer["max_eval_iters"]
-        self.iters_per_epoch = cfg_trainer["iters_per_epoch"]
 
         # Try infer the number of iterations per epoch from the dataset.
         # If the length of the dataset cannot be determined, which happens
@@ -57,7 +58,7 @@ class BaseTrainer:
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
             self.mnt_mode = 'off'
-            self.mnt_metric = 'total_loss'
+            self.mnt_metric = 'last'
             self.mnt_best = 0
         else:
             self.mnt_mode, self.mnt_metric = self.monitor.split()
@@ -325,10 +326,12 @@ class SimpleTrainer(BaseTrainer):
         for key, value in result.items():
             self.logger.info('{:15s}: {}'.format(str(key), value))
 
-        # evaluate model performance according to configured metric, save best checkpoint as model_best
-        best = False
-        if self.mnt_mode != 'off':
-            
+        # evaluate model performance according to monitor config, save best checkpoint as `model_best.pt`
+        # if monitor is disabled, always save the last checkpoint as the best checkpoint.
+        if self.mnt_mode == 'off':
+            best = True
+        else:
+            best = False
             if self.mnt_metric not in result:
                 self.logger.error("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
                 raise RuntimeError("Error: Metric: {} is not found in model's outputs dict: {}.".format(self.mnt_metric, result.keys()))
@@ -339,7 +342,7 @@ class SimpleTrainer(BaseTrainer):
             if improved:
                 self.mnt_best = result[self.mnt_metric]
                 best = True
-
+        
         # only save to disk in the main process
         filename = "model_{}.pt".format(self.iter)
         self.checkpointer.save(filename, save_best=best)

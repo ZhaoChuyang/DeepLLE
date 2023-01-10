@@ -37,7 +37,6 @@
         "save_last": -1,
         "save_dir": "../event_logs",
         "ema_rate": null,
-        "verbosity": 2,
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,

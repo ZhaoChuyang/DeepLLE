@@ -61,7 +61,7 @@ def init_config(args):
     # Step 4: computing and updating configurations
     config["model"]["device"] = "cuda" if torch.cuda.is_available() else "cpu"
 
-    config["trainer"]["save_dir"] = os.path.abspath(config["trainer"]["save_dir"])
+    config["trainer"]["save_dir"] = os.path.join(Config.CONFIG_DIR, config["trainer"]["save_dir"])
     config["trainer"]["ckp_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "checkpoints")
     config["trainer"]["log_dir"] = os.path.join(config["trainer"]["save_dir"], config["name"], "log")
 

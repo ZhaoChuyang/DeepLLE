@@ -32,4 +32,4 @@ To specify the GPU devices, you can setting the environment variable `CUDA_VISIB
 ```
 CUDA_VISIBLE_DEVICES=0,2 python train_net.py --num-gpus 2 --config ../configs/llie_base.json
 ```
-Here the config will use the GPU devices with id 0 and 2 for training.
+The above config will use the GPU devices with id 0 and 2 for training.
