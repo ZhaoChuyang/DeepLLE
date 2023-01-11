@@ -2,7 +2,8 @@ Details of the configuration options.
 
 ```python
 {
-    # Experiment name. All checkpoints and logs of this experiment will be saved in a folder with the experiment name. Change this option every time you want to run a different experiment.
+    # Experiment name. All checkpoints and logs of this experiment will be saved in a folder
+    # with the experiment name. Change this option every time you want to run a different experiment.
     "name": "llie_base",
     # Base config. All options in base config will be merged with the current config. Recursive config merging is supported.
     "base": "base.json",
@@ -13,7 +14,8 @@ Details of the configuration options.
     "data_factory": {
         # Training dataset settings
         "train": {
-            # Dataset names, can be both a dataset name string for a single dataset, or a list of dataset names for multiple datasets, e.g. "names": "lol_train" or "names": ["lol_train", "mbllen_noisy"].
+            # Dataset names, can be both a dataset name string for a single dataset, or a list of dataset
+            # names for multiple datasets, e.g. "names": "lol_train" or "names": ["lol_train", "mbllen_noisy"].
             "names": [
                 "lol_train", "mbllen_noisy", "ve_lol_real_train", "sice_all", "fivek_all"
             ],

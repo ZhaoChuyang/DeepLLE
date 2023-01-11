@@ -1,14 +1,20 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
-from typing import List, Optional
+from typing import List, Optional, Union
 import torch.utils.data as torchdata
 import itertools
-from .comm import ToIterableDataset, CommISPDataset
-from .samplers import TrainingSampler, BalancedSampler, InferenceSampler
-from .catalog import DATASET_CATALOG
-import logging
+from deeplle.data.common import ToIterableDataset, CommISPDataset, CommVideoISPDataset
+from deeplle.data.samplers import TrainingSampler, BalancedSampler, InferenceSampler
+from deeplle.data.catalog import DATASET_CATALOG
 
 
 __all__ = ['build_batch_data_loader', 'build_train_loader', 'build_test_loader']
+
+
+def convert_images_to_videos(dataset_dicts):
+    """
+    Convert images to videos by concatenating n image frames into a video sequence.
+    """
+
 
 
 def build_batch_data_loader(
@@ -37,7 +43,7 @@ def build_batch_data_loader(
 
 
 def get_isp_dataset_dicts(
-    names
+    names: Union[str, List[str]],
 ):
     """
     Args:
@@ -85,6 +91,9 @@ def build_train_loader(
     batch_size=1,
     transforms=None,
     dataset=None,
+    video_data=False,
+    num_frames=0,
+    padding_mode="reflection",
     sampler=None,
     num_workers=0,
     collate_fn=None
@@ -97,7 +106,10 @@ def build_train_loader(
         batch_size (int): total batch size, the batch size each GPU got is batch_size // num_gpus.
         transforms (torchvision.Transforms): transforms applied to dataset.
         dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
-        sampler (str): Specify this argument if you use map-style dataset, by default use the TrainingSampler. You should not provide this if you use iterable-style dataset.
+        video_data (bool): whether to create video dataset.
+        num_frames (int): if video_data is True, num_frames should be provided which is the number of frames in a single input video sequence.
+        padding_mode (str): padding mode used for video dataset constrcution. Refer to `CommVideoISPDataset` for more details.
+        sampler (str): specify this argument if you use map-style dataset, by default use the TrainingSampler. You should not provide this if you use iterable-style dataset.
         num_worker (int): num_worker of the dataloader.
         collate_fn (callable): use trivial_collate_fn by default.
 
@@ -111,7 +123,10 @@ def build_train_loader(
         dataset_dicts = get_isp_dataset_dicts(names)
         dataset_sizes = get_isp_dataset_sizes(names)
         # TODO: show datasets information
-        dataset = CommISPDataset(dataset_dicts, True, transforms)
+        if video_data is False:
+            dataset = CommISPDataset(dataset_dicts, True, transforms)
+        else:
+            dataset = CommVideoISPDataset(dataset_dicts, num_frames, padding_mode, True, transforms)
     
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
@@ -122,7 +137,7 @@ def build_train_loader(
             sampler = BalancedSampler(dataset_sizes)
         else:
             raise NotImplementedError(f"sampler: {sampler} is not implemented.")
-
+    
     return build_batch_data_loader(
         dataset=dataset,
         sampler=sampler,

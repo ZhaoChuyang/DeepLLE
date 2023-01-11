@@ -4,4 +4,4 @@ from .build import build_batch_data_loader, build_train_loader, build_test_loade
 from .transforms import build_transforms
 from .catalog import DATASET_CATALOG
 from .datasets import *
-from .comm import CommISPDataset
+from .common import CommISPDataset
