@@ -2,21 +2,22 @@
     "name": "base_isp_exp",
     "base": "",
     "data_factory": {
+        "type": "image",
         "train": {
-            "names": "lol_all",
+            "names": "",
             "batch_size": 16,
             "num_workers": 0,
             "transforms": null,
             "sampler": "TrainingSampler"
         },
         "valid": {
-            "names": "lol_val",
+            "names": "",
             "batch_size": 4,
             "num_workers": 0,
             "transforms": null
         },
         "test": {
-            "names": "lol_val",
+            "names": "",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": null
@@ -35,7 +36,7 @@
         "eval_period": 100,
         "log_period": 50,
         "save_last": -1,
-        "save_dir": "../event_logs",
+        "save_dir": "../../event_logs",
         "ema_rate": null,
         "monitor": "min total_loss",
         "max_eval_iters": -1,

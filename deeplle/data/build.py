@@ -2,19 +2,18 @@
 from typing import List, Optional, Union
 import torch.utils.data as torchdata
 import itertools
+import logging
 from deeplle.data.common import ToIterableDataset, CommISPDataset, CommVideoISPDataset
 from deeplle.data.samplers import TrainingSampler, BalancedSampler, InferenceSampler
 from deeplle.data.catalog import DATASET_CATALOG
+from deeplle.utils.config import configurable, ConfigDict
+from deeplle.data.transforms import build_image_transforms, build_video_transforms
 
 
-__all__ = ['build_batch_data_loader', 'build_train_loader', 'build_test_loader']
+__all__ = ['build_batch_data_loader', 'build_isp_train_loader', 'build_test_loader']
 
 
-def convert_images_to_videos(dataset_dicts):
-    """
-    Convert images to videos by concatenating n image frames into a video sequence.
-    """
-
+logger = logging.getLogger(__name__)
 
 
 def build_batch_data_loader(
@@ -65,6 +64,7 @@ def get_isp_dataset_dicts(
 
     return dataset_dicts
 
+
 def get_isp_dataset_sizes(
     names
 ):
@@ -86,32 +86,74 @@ def get_isp_dataset_sizes(
     return dataset_sizes
 
 
-def build_train_loader(
+def _isp_train_loader_from_config(cfg: ConfigDict, type: str, *, dataset = None):
+    """
+    Args:
+        cfg (ConfigDict): cfg is the config dict of the train data factory: `cfg.data_factory.train`.
+        type (str): dataset type, one of 'image' | 'video'.
+        dataset (optional): provide dataset if you don't want to construct dataset using dataset names
+            specified in `cfg.names`.
+    """
+    if dataset is not None:
+        names = None
+    else:
+        names = cfg.names
+
+    assert type in ["video", "image"], f"Dataset type can only be 'image' or 'video'."
+    video_kwargs = {}
+    if type == "video":
+        video_kwargs = {
+            "num_frames": cfg.num_frames,
+            "padding_mode": cfg.padding_mode,
+        }
+        
+    if type == 'video':
+        transforms = build_video_transforms(cfg.transforms)
+    else:
+        transforms = build_image_transforms(cfg.transforms)
+
+    return {
+        "names": names,
+        "dataset": dataset,
+        "idaug_datasets": cfg.idaug_datasets,
+        "batch_size": cfg.batch_size,
+        "transforms": transforms,
+        "type": type,
+        "sampler": cfg.sampler,
+        "num_workers": cfg.num_workers,
+        **video_kwargs,
+    }
+
+
+@configurable(from_config=_isp_train_loader_from_config)
+def build_isp_train_loader(
     names=None,
+    dataset=None,
+    type="image",
+    idaug_datasets=[],
     batch_size=1,
     transforms=None,
-    dataset=None,
-    video_data=False,
-    num_frames=0,
-    padding_mode="reflection",
     sampler=None,
     num_workers=0,
-    collate_fn=None
+    collate_fn=None,
+    # video dataset configs, used when type is 'video'
+    num_frames=0,
+    padding_mode="reflection",
 ):
     """
     Build a train loader.
 
     Args:
         names (str or list[str]): dataset name or a list of dataset names, you must provide at least one of dataset or names.
+        dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
+        type (str): dataset type, must be one of 'image' | 'video'.
         batch_size (int): total batch size, the batch size each GPU got is batch_size // num_gpus.
         transforms (torchvision.Transforms): transforms applied to dataset.
-        dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
-        video_data (bool): whether to create video dataset.
-        num_frames (int): if video_data is True, num_frames should be provided which is the number of frames in a single input video sequence.
-        padding_mode (str): padding mode used for video dataset constrcution. Refer to `CommVideoISPDataset` for more details.
         sampler (str): specify this argument if you use map-style dataset, by default use the TrainingSampler. You should not provide this if you use iterable-style dataset.
         num_worker (int): num_worker of the dataloader.
         collate_fn (callable): use trivial_collate_fn by default.
+        num_frames (int): if video_data is True, num_frames should be provided which is the number of frames in a single input video sequence.
+        padding_mode (str): padding mode used for video dataset constrcution. Refer to `CommVideoISPDataset` for more details.
 
     Note: Typically, if you commomly use a dataset, you can
     register it in data/datasets, so that it can be easily loaded just
@@ -123,10 +165,13 @@ def build_train_loader(
         dataset_dicts = get_isp_dataset_dicts(names)
         dataset_sizes = get_isp_dataset_sizes(names)
         # TODO: show datasets information
-        if video_data is False:
-            dataset = CommISPDataset(dataset_dicts, True, transforms)
-        else:
+        if type == "image":
+            dataset = CommISPDataset(dataset_dicts, True, transforms, idaug_datasets)
+        elif type == "video":
             dataset = CommVideoISPDataset(dataset_dicts, num_frames, padding_mode, True, transforms)
+        else:
+            logger.error(f"Dataset type must be 'image' or 'video', got {type}.")
+            raise RuntimeError
     
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"

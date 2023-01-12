@@ -4,7 +4,7 @@ from ...utils import check_path_is_image, check_path_exists
 from ..catalog import DATASET_CATALOG
 
 
-def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = False):
+def load_ve_lol_dataset(root: str, category: str, split: str, **kwargs):
     """
     Args:
         root (str): path to the root directory of VE-LOL. Refer to `deepisp/data/datasets/README.md` for the file structure inside root.
@@ -33,16 +33,12 @@ def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = Fals
         assert check_path_exists(low_dir) and check_path_exists(high_dir)
 
         for low_path, high_path in _iter_subdir(low_dir, high_dir):
-            record = {}
-            record["image_path"] = low_path
-            record["target_path"] = high_path
+            record = {
+                "image_path": low_path,
+                "target_path": high_path,
+                **kwargs
+            }
             train_dicts.append(record)
-
-            if idaug:
-                record = {}
-                record["image_path"] = high_path
-                record["target_path"] = high_path
-                train_dicts.append(record)
         
         # add test splits
         low_dir = os.path.join(root, "VE-LOL-L-Syn/VE-LOL-L-Syn-Low_test")
@@ -50,9 +46,11 @@ def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = Fals
         assert check_path_exists(low_dir) and check_path_exists(high_dir)
 
         for low_path, high_path in _iter_subdir(low_dir, high_dir):
-            record = {}
-            record["image_path"] = low_path
-            record["target_path"] = high_path
+            record = {
+                "image_path": low_path,
+                "target_path": high_path,
+                **kwargs
+            }
             test_dicts.append(record)
     
     if category in ['real', 'all']:
@@ -62,16 +60,12 @@ def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = Fals
         assert check_path_exists(low_dir) and check_path_exists(high_dir)
 
         for low_path, high_path in _iter_subdir(low_dir, high_dir):
-            record = {}
-            record["image_path"] = low_path
-            record["target_path"] = high_path
+            record = {
+                "image_path": low_path,
+                "target_path": high_path,
+                **kwargs
+            }
             train_dicts.append(record)
-
-            if idaug:
-                record = {}
-                record["image_path"] = high_path
-                record["target_path"] = high_path
-                train_dicts.append(record)
 
         # add test splits
         low_dir = os.path.join(root, "VE-LOL-L-Cap-Full//VE-LOL-L-Cap-Low_test")
@@ -79,9 +73,11 @@ def load_ve_lol_dataset(root: str, category: str, split: str, idaug: bool = Fals
         assert check_path_exists(low_dir) and check_path_exists(high_dir)
 
         for low_path, high_path in _iter_subdir(low_dir, high_dir):
-            record = {}
-            record["image_path"] = low_path
-            record["target_path"] = high_path
+            record = {
+                "image_path": low_path,
+                "target_path": high_path,
+                **kwargs
+            }
             test_dicts.append(record)
     
     if split == 'train':
@@ -102,7 +98,7 @@ def _iter_subdir(low_dir, high_dir):
         yield low_path, high_path
 
 
-def register_ve_lol_dataset(name: str, root: str, category: str, split: str, idaug: bool):
+def register_ve_lol_dataset(name: str, root: str, category: str, split: str, **kwargs):
     """
     Register lol dataset with given name. The rigistered dataset
     can be used directly by specifying the registered name in
@@ -114,7 +110,7 @@ def register_ve_lol_dataset(name: str, root: str, category: str, split: str, ida
         split (str): split type of the dataset. Refer to load_lol_dataset() for more details.
     
     """
-    DATASET_CATALOG.register(name, lambda: load_ve_lol_dataset(root, category, split, idaug))
+    DATASET_CATALOG.register(name, lambda: load_ve_lol_dataset(root, category, split, **kwargs))
 
 
 

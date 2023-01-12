@@ -12,7 +12,7 @@ from deeplle.utils import mkdirs, get_ip_address, init_config
 from deeplle.utils.nn_utils import get_model_info
 from deeplle.modeling import build_model, create_ddp_model
 from deeplle.solver import build_optimizer, build_lr_scheduler
-from deeplle.data import build_transforms, build_train_loader, build_test_loader
+from deeplle.data import build_image_transforms, build_isp_train_loader, build_test_loader
 
 
 def default_argument_parser(epilog=None):
@@ -76,8 +76,9 @@ class DefaultISPTrainer(SimpleTrainer):
 
         cfg_train_factory = config["data_factory"]["train"]
         cfg_valid_factory = config["data_factory"]["valid"]
-        train_loader = self.build_train_loader(cfg_train_factory)
-        valid_loader = self.build_valid_loader(cfg_valid_factory)
+        dataset_type = config["data_factory"]["type"]
+        train_loader = self.build_train_loader(cfg_train_factory, dataset_type)
+        valid_loader = self.build_valid_loader(cfg_valid_factory, dataset_type)
 
         cfg_solver = config["solver"]
         optimizer = self.build_optimizer(cfg_solver, model)
@@ -96,33 +97,18 @@ class DefaultISPTrainer(SimpleTrainer):
         return model
 
     @classmethod
-    def build_train_loader(cls, cfg_train_factory):
-        batch_size = cfg_train_factory["batch_size"]
-        num_workers = cfg_train_factory["num_workers"]
-        sampler = cfg_train_factory["sampler"]
-
-        # build transforms
-        cfg_transforms = cfg_train_factory["transforms"]
-        transforms = build_transforms(cfg_transforms)
-
-        # TODO: not a good practice to use transforms as the dataset argument directly.
-        # considering implement a wrapper dataset which takes list of dataset, transforms, mode as argument.
-
-        # build dataset / get dataset names
-        names = cfg_train_factory["names"]
-
-        # build dataloader
-        dataloader = build_train_loader(names=names, batch_size=batch_size, num_workers=num_workers, sampler=sampler, transforms=transforms)
+    def build_train_loader(cls, cfg_train_factory, type):
+        dataloader = build_isp_train_loader(cfg_train_factory, type=type)
         return dataloader
 
     @classmethod
-    def build_valid_loader(cls, cfg_valid_factory):
+    def build_valid_loader(cls, cfg_valid_factory, type):
         batch_size = cfg_valid_factory["batch_size"]
         num_workers = cfg_valid_factory["num_workers"]
 
         # build transforms
         cfg_transforms = cfg_valid_factory["transforms"]
-        transforms = build_transforms(cfg_transforms)
+        transforms = build_image_transforms(cfg_transforms)
 
         # build dataset
         names = cfg_valid_factory["names"]

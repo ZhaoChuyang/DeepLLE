@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import argparse
 import os
@@ -16,7 +17,7 @@ from deeplle.utils.logger import setup_logger
 from deeplle.utils.image_ops import save_image
 from deeplle.utils.nn_utils import get_bare_model
 from deeplle.modeling import build_model, create_ddp_model
-from deeplle.data import build_transforms, build_test_loader, CommISPDataset
+from deeplle.data import build_image_transforms, build_test_loader, CommISPDataset
 
 
 def default_argument_parser(epilog=None):
@@ -90,7 +91,7 @@ def resume_checkpoint(model: Any, path: str, ema_model: bool = False):
 
 def build_data_loader(config):
     cfg_infer_factory = config["infer"]["data"]
-    transforms = build_transforms(cfg_infer_factory["transforms"])
+    transforms = build_image_transforms(cfg_infer_factory["transforms"])
 
     dataset_dicts = load_data(cfg_infer_factory["img_dir"], config["infer"]["save_dir"])
     dataset = CommISPDataset(dataset_dicts, False, transforms)

@@ -23,27 +23,23 @@ from .fivek import register_fivek_dataset
 
 def register_all_lol(root):
     SPLITS = [
-        ("lol_train", "LOL", "train", False),
-        ("lol_train_idaug", "LOL", "train", True),
-        ("lol_val", "LOL", "val", False),
-        ("lol_all", "LOL", "all", False),
-        ("lol_all_idaug", "LOL", "all", True)
+        ("lol_train", "LOL", "train"),
+        ("lol_val", "LOL", "val"),
+        ("lol_all", "LOL", "all"),
     ]
-    for name, dirname, split, idaug in SPLITS:
-        register_lol_dataset(name, os.path.join(root, dirname), split, idaug)
+    for name, dirname, split in SPLITS:
+        register_lol_dataset(name, os.path.join(root, dirname), split, dataset_name=name)
 
 
 def register_all_sice(root):
     SPLITS = [
-        ("sice_train", "SICE", "train", False),
-        ("sice_train_idaug", "SICE", "train", True),
-        ("sice_val", "SICE", "val", False),
-        ("sice_test", "SICE", "test", False),
-        ("sice_all", "SICE", "all", False),
-        ("sice_all_idaug", "SICE", "all", True),
+        ("sice_train", "SICE", "train"),
+        ("sice_val", "SICE", "val"),
+        ("sice_test", "SICE", "test"),
+        ("sice_all", "SICE", "all"),
     ]
-    for name, dirname, split, idaug in SPLITS:
-        register_sice_dataset(name, os.path.join(root, dirname), split, idaug)
+    for name, dirname, split in SPLITS:
+        register_sice_dataset(name, os.path.join(root, dirname), split, dataset_name=name)
 
 
 def register_all_mbllen(root):
@@ -52,22 +48,19 @@ def register_all_mbllen(root):
         ("mbllen_noisy", "MBLLEN", True),
     ]
     for name, dirname, noise in ALL:
-        register_mbllen_dataset(name, os.path.join(root, dirname), noise)
+        register_mbllen_dataset(name, os.path.join(root, dirname), noise, dataset_name=name)
 
 
 def register_all_ve_lol(root):
     ALL = [
-        ("ve_lol_syn_train", "VE-LOL", "syn", "train", False),
-        ("ve_lol_syn_train_idaug", "VE-LOL", "syn", "train", True),
-        ("ve_lol_syn_test", "VE-LOL", "syn", "test", False),
-        ("ve_lol_real_train", "VE-LOL", "real", "train", False),
-        ("ve_lol_real_train_idaug", "VE-LOL", "real", "train", True),
-        ("ve_lol_real_test", "VE-LOL", "real", "test", False),
-        ("ve_lol_all", "VE-LOL", "all", "all", False),
-        ("ve_lol_all_idaug", "VE-LOL", "all", "all", True),
+        ("ve_lol_syn_train", "VE-LOL", "syn", "train"),
+        ("ve_lol_syn_test", "VE-LOL", "syn", "test"),
+        ("ve_lol_real_train", "VE-LOL", "real", "train"),
+        ("ve_lol_real_test", "VE-LOL", "real", "test"),
+        ("ve_lol_all", "VE-LOL", "all", "all"),
     ]
-    for name, dirname, category, split, idaug in ALL:
-        register_ve_lol_dataset(name, os.path.join(root, dirname), category, split, idaug)
+    for name, dirname, category, split in ALL:
+        register_ve_lol_dataset(name, os.path.join(root, dirname), category, split, dataset_name=name)
 
 
 def register_all_fivek(root):
@@ -80,7 +73,7 @@ def register_all_fivek(root):
         ("fivek_all", "fivek", "all"),
     ]
     for name, dirname, expert in ALL:
-        register_fivek_dataset(name, os.path.join(root, dirname), expert)
+        register_fivek_dataset(name, os.path.join(root, dirname), expert, dataset_name=name)
 
 
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))

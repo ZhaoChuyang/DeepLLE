@@ -11,7 +11,7 @@ from torch import nn
 import numpy as np
 from numpy import inf
 from deeplle.utils import TensorboardWriter, MetricTracker, comm
-from deeplle.utils.nn_utils import get_model_info
+from deeplle.utils.nn_utils import get_model_info, get_learning_rate
 from deeplle.utils.checkpoint import Checkpointer
 from torch.nn.parallel import DistributedDataParallel, DataParallel
 
@@ -203,7 +203,6 @@ class SimpleTrainer(BaseTrainer):
         assert self.model.training, "[Trainer] model was changed to eval mode!"
 
         data = next(self._train_loader_iter)
-
         """
         If you want to do something with the losses or compute metrics based on
         model's outputs, you can wrap the model.
@@ -283,12 +282,15 @@ class SimpleTrainer(BaseTrainer):
 
         # print training information to the screen periodically.
         if self.iter % self.log_period == 0:
-            self.logger.info('Epoch: {}, Train Iteration: [{}/{} ({:.0f}%)], Loss: {:.6f}'.format(
-                    self.epoch,
-                    self.iter,
-                    self.max_iter,
-                    100 * self.iter / self.max_iter,
-                    self.train_metrics.avg('total_loss')))
+            progress_message = 'Epoch: {}, Train Iteration: [{}/{} ({:.0f}%)]'.format(
+                self.epoch,
+                self.iter,
+                self.max_iter,
+                100 * self.iter / self.max_iter)
+            for key, val in self.train_metrics.result().items():
+                progress_message += ', {}: {:.3f}'.format(key, val)
+            progress_message += ', lr: {:.2e}'.format(get_learning_rate(self.optimizer))
+            self.logger.info(progress_message)
 
         # evaluate on the validation dataset periodically if validation dataset is provided.
         if self.do_validation and self.iter % self.eval_period == 0:
@@ -321,10 +323,10 @@ class SimpleTrainer(BaseTrainer):
             result.update(valid_result)
 
         # print results to the screen and save the results into log file
-        result['iter'] = self.iter
-        result['epoch'] = self.epoch
+        self.logger.info('{:15s}: {}'.format('epoch', self.epoch))
+        self.logger.info('{:15s}: {}'.format('iter', self.iter))
         for key, value in result.items():
-            self.logger.info('{:15s}: {}'.format(str(key), value))
+            self.logger.info('{:15s}: {:.3f}'.format(str(key), value))
 
         # evaluate model performance according to monitor config, save best checkpoint as `model_best.pt`
         # if monitor is disabled, always save the last checkpoint as the best checkpoint.
@@ -415,7 +417,7 @@ class SimpleTrainer(BaseTrainer):
         total_time = time.perf_counter() - start_time
 
         self.logger.info(
-            "Evaluation completed. Total inference time: {}({:.6f} s/iter)".format(
+            "Evaluation completed. Total inference time: {:.6f}({:.6f} s/iter)".format(
                 total_time, total_time / total
                 )
             )

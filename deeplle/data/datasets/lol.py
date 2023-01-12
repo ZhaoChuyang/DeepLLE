@@ -4,7 +4,7 @@ from ...utils import check_path_is_image
 from ..catalog import DATASET_CATALOG
 
 
-def load_lol_dataset(root: str, split: str, idaug: bool = False):
+def load_lol_dataset(root: str, split: str, **kwargs):
     """
     Load the LOL dataset into a list of dataset dicts.
 
@@ -31,22 +31,23 @@ def load_lol_dataset(root: str, split: str, idaug: bool = False):
             continue
         src_path = os.path.join(root, 'our485/low', filename)
         tgt_path = os.path.join(root, 'our485/high', filename)
-        record = {}
-        record["image_path"] = src_path
-        record["target_path"] = tgt_path
+        record = {
+            "image_path": src_path,
+            "target_path": tgt_path,
+            **kwargs
+        }
         train_dicts.append(record)
-
-        if idaug:
-            train_dicts.append({"image_path": tgt_path, "target_path": tgt_path})
     
     for filename in os.listdir(os.path.join(root, 'eval15/high')):
         if not check_path_is_image(filename):
             continue
         src_path = os.path.join(root, 'eval15/low', filename)
         tgt_path = os.path.join(root, 'eval15/high', filename)
-        record = {}
-        record["image_path"] = src_path
-        record["target_path"] = tgt_path
+        record = {
+            "image_path": src_path,
+            "target_path": tgt_path,
+            **kwargs
+        }
         val_dicts.append(record)
 
     if split == 'train':
@@ -57,7 +58,7 @@ def load_lol_dataset(root: str, split: str, idaug: bool = False):
         return train_dicts + val_dicts
 
 
-def register_lol_dataset(name: str, root: str, split: str, idaug: bool):
+def register_lol_dataset(name: str, root: str, split: str, **kwargs):
     """
     Register lol dataset with given name. The rigistered dataset
     can be used directly by specifying the registered name in
@@ -69,7 +70,7 @@ def register_lol_dataset(name: str, root: str, split: str, idaug: bool):
         split (str): split type of the dataset. Refer to load_lol_dataset() for more details.
     
     """
-    DATASET_CATALOG.register(name, lambda: load_lol_dataset(root, split, idaug))
+    DATASET_CATALOG.register(name, lambda: load_lol_dataset(root, split, **kwargs))
 
 
 if __name__ == '__main__':

@@ -1,13 +1,15 @@
 {
-    "name": "llie_base",
+    "name": "llve_base",
     "base": "base.json",
     "data_factory": {
-        "type": "image",
+        "type": "video",
         "train": {
             "names": [
-                "lol_train", "mbllen_noisy", "ve_lol_real_train", "sice_all"
+                "lol_train", "mbllen_noisy", "ve_lol_real_train", "sice_all", "fivek_all"
             ],
-            "idaug_datasets": ["lol_train", "ve_lol_real_train", "sice_all"],
+            "idaug_datasets": [],
+            "num_frames": 5,
+            "padding_mode": "reflection",
             "batch_size": 32,
             "num_workers": 4,
             "sampler": "BalancedSampler",
@@ -21,13 +23,13 @@
                 {
                     "name": "RandomVerticalFlip",
                     "args": {
-                        "flip_prob": 0.5
+                        "p": 0.5
                     }
                 },
                 {
                     "name": "RandomHorizontalFlip",
                     "args": {
-                        "flip_prob": 0.5
+                        "p": 0.5
                     }
                 },
                 {
@@ -45,6 +47,8 @@
 
         "valid": {
             "names": "lol_val",
+            "num_frames": 5,
+            "padding_mode": "reflection",
             "batch_size": 4,
             "num_workers": 0,
             "transforms": [
@@ -57,6 +61,8 @@
 
         "test": {
             "names": "lol_val",
+            "num_frames": 5,
+            "padding_mode": "reflection",
             "batch_size": 1,
             "num_workers": 0,
             "transforms": [
@@ -89,7 +95,7 @@
         "monitor": "min total_loss",
         "max_eval_iters": -1,
         "tensorboard": true,
-        "resume_checkpoint": "model_best.pt",
+        "_resume_checkpoint": "model_best.pt",
         "use_grad_clip": false
     },
 

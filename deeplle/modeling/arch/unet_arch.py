@@ -21,7 +21,7 @@ class UNetBaseline(BaseISPModel):
         self.l1_loss = CharbonnierLoss()
         self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
         self.ssim_loss = SSIM(data_range = 1.0)
-        # self.perceptual_loss = VGGPerceptualLoss(False)
+        self.perceptual_loss = VGGPerceptualLoss(False)
         self.tv_loss = TVLoss()
 
 
@@ -64,7 +64,7 @@ class UNetBaseline(BaseISPModel):
         loss_dict = {}
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
-        # loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
+        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
         loss_dict["ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
         loss_dict["tv_loss"] = self.tv_loss(inputs, targets)
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets))

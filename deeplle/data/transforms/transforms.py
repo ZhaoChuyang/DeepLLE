@@ -4,8 +4,13 @@ import random
 import numpy as np
 import torch
 from abc import ABC, abstractmethod
+from typing import Union, Tuple, List, Optional
 from torchvision import transforms as T
 from torchvision.transforms import functional as F
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def pad_if_smaller(img, size, fill=0):
@@ -38,22 +43,17 @@ class Transform(ABC):
 
 
 class Compose(Transform):
-    def __init__(self, transforms):
+    def __init__(self, transforms: List[Transform]):
         self.transforms = transforms
 
     def __call__(self, image, target = None):
-        if target is None:
-            for t in self.transforms:
-                image = t(image)
-            return image
-        else:
-            for t in self.transforms:
-                image, target = t(image, target)
-            return image, target
+        for t in self.transforms:
+            image, target = t(image, target)
+        return image, target
 
 
 class Resize(Transform):
-    def __init__(self, size):
+    def __init__(self, size: Union[int, Tuple[int, int]]):
         if isinstance(size, int):
             size = (size, size)
         self.size = size
@@ -61,51 +61,53 @@ class Resize(Transform):
     def __call__(self, image, target = None):
         size = self.size
         image = F.resize(image, size)
-        if target is None:
-            return image
-        target = F.resize(target, size)
+        if target is not None:
+            target = F.resize(target, size)
         return image, target
 
 
 class RandomResize(Transform):
-    def __init__(self, min_size, max_size=None):
+    def __init__(self, min_size: Union[int, Tuple[int, int]], max_size: Union[int, Tuple[int, int]]):
+        if isinstance(min_size, int):
+            min_size = (min_size, min_size)
+        if isinstance(max_size, int):
+            max_size = (max_size, max_size)
         self.min_size = min_size
-        if max_size is None:
-            max_size = min_size
         self.max_size = max_size
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         size = random.randint(self.min_size, self.max_size)
         image = F.resize(image, size)
-        target = F.resize(target, size)
+        if target:
+            target = F.resize(target, size)
         return image, target
 
 
 class RandomHorizontalFlip(Transform):
-    def __init__(self, flip_prob):
+    def __init__(self, flip_prob: float):
         self.flip_prob = flip_prob
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         if random.random() < self.flip_prob:
             image = F.hflip(image)
-            target = F.hflip(target)
+            target = F.hflip(target) if target is not None else None
         return image, target
 
 
 
 class RandomVerticalFlip(Transform):
-    def __init__(self, flip_prob):
+    def __init__(self, flip_prob: float):
         self.flip_prob = flip_prob
 
-    def __call__(self, image, target):
+    def __call__(self, image, target = None):
         if random.random() < self.flip_prob:
             image = F.vflip(image)
-            target = F.vflip(target)
+            target = F.vflip(target) if target is not None else None
         return image, target
 
 
 class RandomCrop(Transform):
-    def __init__(self, size):
+    def __init__(self, size: Union[int, Tuple[int, int]]):
         """
         Args:
             size (int): currently size can only be an int, i.e. only supports rectangle crop.
@@ -119,32 +121,28 @@ class RandomCrop(Transform):
         image = pad_if_smaller(image, min(self.size))
         crop_params = T.RandomCrop.get_params(image, self.size)
         image = F.crop(image, *crop_params)
-        if not target:
-            return image
-
-        target = pad_if_smaller(target, min(self.size))
-        target = F.crop(target, *crop_params)
+        if target:
+            target = pad_if_smaller(target, min(self.size))
+            target = F.crop(target, *crop_params)
         return image, target
 
 
 class CenterCrop(Transform):
-    def __init__(self, size):
+    def __init__(self, size: Union[int, Tuple[int, int]]):
+        if isinstance(size, int):
+            size = (size, size)
         self.size = size
 
     def __call__(self, image, target = None):
         image = F.center_crop(image, self.size)
-        if not target: 
-            return image
-        target = F.center_crop(target, self.size)
+        target = F.center_crop(target, self.size) if target is not None else None
         return image, target
 
 
 class PILToTensor(Transform):
     def __call__(self, image, target = None):
         image = F.pil_to_tensor(image)
-        if not target:
-            return image
-        target = F.pil_to_tensor(target)
+        target = F.pil_to_tensor(target) if target is not None else None
         return image, target
 
 
@@ -154,34 +152,25 @@ class ConvertImageDtype(Transform):
 
     def __call__(self, image, target = None):
         image = F.convert_image_dtype(image, self.dtype)
-        if not target:
-            return image
-        target = F.convert_image_dtype(target, self.dtype)
+        target = F.convert_image_dtype(target, self.dtype) if target is not None else None
         return image, target
 
 
 class Normalize(Transform):
-    def __init__(self, mean, std):
+    def __init__(self, mean: List[float], std: List[float]):
         self.mean = mean
         self.std = std
 
     def __call__(self, image, target = None):
         image = F.normalize(image, mean=self.mean, std=self.std)
-        if not target:
-            return image
-        target = F.normalize(image, mean=self.mean, std=self.std)
+        target = F.normalize(image, mean=self.mean, std=self.std)  if target is not None else None
         return image, target
 
 
 class ToTensor(Transform):
-    def __init__(self):
-        pass
-
     def __call__(self, image, target = None):
         image = F.to_tensor(image)
-        if target is None:
-            return image
-        target = F.to_tensor(target)
+        target = F.to_tensor(target)  if target is not None else None
         return image, target
 
 
@@ -190,32 +179,11 @@ class RandomRightRotation(Transform):
         self.p = p
     
     def __call__(self, image: torch.Tensor, target: torch.Tensor = None):
-        # don't do augmentation in inference mode
-        if target is None:
-            return image
-        
         if random.random() < self.p:
             rot_code = random.randint(1, 3)
             degree = rot_code * 90
             image = F.rotate(image, degree)
-            target = F.rotate(target, degree)
+            target = F.rotate(target, degree) if target is not None else None
         
         return image, target
 
-
-class IdentityAug(Transform):
-    def __init__(self, p):
-        """
-        Construct an identity pair of target images given the probability p.
-        This is observed to improve the perceptual quality of the results.
-        """
-        self.p = p
-
-    def __call__(self, image, target = None):
-        if target is None:
-            return image
-        
-        if random.random() < self.p:
-            image = target
-        
-        return image, target

@@ -97,7 +97,7 @@ class Checkpointer:
             self.logger.info("No checkpoint found. Initializing model from scratch")
             return {}
         
-        self.logger.info("[Checkpointer] Loading the model from {} ...".format(path))
+        self.logger.info("Loading the model from {} ...".format(path))
         assert check_path_exists(path), "Checkpoint path does not exist: {}".format(path)
         checkpoint = self._load_file(path)
         missing_keys, unexpected_keys = self.load_state_dict(self.model, checkpoint.pop("model"))

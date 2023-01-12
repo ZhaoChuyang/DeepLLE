@@ -9,7 +9,7 @@ import functools
 from deeplle.utils import read_json
 
 
-__all__ = ["init_config", "configurable"]
+__all__ = ["init_config", "configurable", "ConfigDict"]
 
 
 _CONFIG_DIR: str = None

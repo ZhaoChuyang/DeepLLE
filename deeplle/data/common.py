@@ -1,9 +1,17 @@
 # Created on Mon Oct 10 2022 by Chuyang Zhao
 import itertools
+import logging
 from typing import Dict, List
 from torch.utils import data
 from PIL import Image
 from .data_utils import generate_frame_indices
+from .transforms import transforms as T
+from .transforms import video_transforms as VT
+from typing import Optional
+import random
+
+
+logger = logging.getLogger(__name__)
 
 
 def _shard_iterator_dataloader_worker(iterable):
@@ -42,11 +50,14 @@ class ToIterableDataset(data.IterableDataset):
         self.shard_sampler = shard_sampler
 
     def __iter__(self):
-        if self.shard_sampler:
+        if not self.shard_sampler:
             sampler = self.sampler
         else:
+            # if you do not shard the sampler based on the current pytorch data loader
+            # worker id, each dataloader worker will produce identical samples for each
+            # iteration. This is not what we want.
             sampler = _shard_iterator_dataloader_worker(self.sampler)
-        for idx in self.sampler:
+        for idx in sampler:
             yield self.dataset[idx]
     
     def __len__(self):
@@ -72,12 +83,15 @@ class CommISPDataset(data.Dataset):
             both input image and its target pair are assumed to exist. If you set it to False,
             we assume you load the dataset in testing mode, in which only input images exist.
         transforms: do transforms to image pairs or single image only.
+        idaug_datasets (list or None) dataset names which you want to do identity augmentation,
+            which a pair of images (target, target) will be added to the dataset with probability 0.5.
 
     """
-    def __init__(self, datasets: List[Dict], is_train: bool, transforms):
+    def __init__(self, datasets: List[Dict], is_train: bool, transforms: T.Transform, idaug_datasets: Optional[List[str]] = None):
         self.datasets = datasets
         self.is_train = is_train
         self.transforms = transforms
+        self.idaug_datasets = idaug_datasets
 
     def __len__(self):
         return len(self.datasets)
@@ -96,36 +110,30 @@ class CommISPDataset(data.Dataset):
                 * image: input image in tensor
                 * other keys in the dict
         """
-        if self.is_train:
-            record = self.datasets[idx]
-            image = Image.open(record['image_path'])
+        record = self.datasets[idx]
+        
+        # do identity augmentation, only apply to training dataset
+        if self.idaug_datasets and self.is_train and record.get("dataset_name", None) in self.idaug_datasets and random.random() < 0.5:
+            record['image_path'] = record['target_path']
+        
+        image = Image.open(record['image_path'])
+        if 'target_path' in record:
             target = Image.open(record['target_path'])
-            image, target = self.transforms(image, target)
-            record['image'] = image
-            record['target'] = target
-            return record
         else:
-            record = self.datasets[idx]
-            
-            if 'target_path' in record:
-                image = Image.open(record['image_path'])
-                target = Image.open(record['target_path'])
-                image, target = self.transforms(image, target)
-                record['image'] = image
-                record['target'] = target
-            else:
-                image = Image.open(record['image_path'])
-                image = self.transforms(image)
-                record['image'] = image
-            
-            return record
+            target = None
+        
+        image, target = self.transforms(image, target)
+        record['image'] = image
+        if target is not None:
+            record['target'] = target
+        return record
 
 
 class CommVideoISPDataset(data.Dataset):
     """
     Construct commom video ISP dataset from a list of dataset dicts.
     """
-    def __init__(self, dataset_dicts: List[Dict], num_frames: int, padding_mode: str, is_train: bool, transforms):
+    def __init__(self, dataset_dicts: List[Dict], num_frames: int, padding_mode: str, is_train: bool, transforms: VT.Transform):
         """
         Args:
             dataset_dicts (list): a list of dataset dicts. dict should contains 'image_path' and 'target_path'.

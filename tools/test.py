@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Created on Sat Oct 08 2022 by Chuyang Zhao
 import argparse
 import os
@@ -19,7 +20,7 @@ from deeplle.utils.nn_utils import get_bare_model
 from deeplle.engine.launch import launch
 from deeplle.modeling import build_model, create_ddp_model
 from deeplle.modeling.metrics import build_metric
-from deeplle.data import build_transforms, build_test_loader
+from deeplle.data import build_image_transforms, build_test_loader
 
 
 def default_argument_parser(epilog=None):
@@ -92,7 +93,7 @@ def resume_checkpoint(model: Any, path: str, ema_model: bool = False):
 
 
 def build_data_loader(cfg_test_factory):
-    transforms = build_transforms(cfg_test_factory["transforms"])
+    transforms = build_image_transforms(cfg_test_factory["transforms"])
 
     dataloader = build_test_loader(
         names=cfg_test_factory["names"],

@@ -6,7 +6,7 @@ import random
 from ..catalog import DATASET_CATALOG
 
 
-def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, idaug: bool = False):
+def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, **kwargs):
     """
     Load the SICE dataset, introduced in "Learning a Deep Single Image
     Contrast Enhancer from Multi-Exposure Images".
@@ -53,9 +53,7 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
                 continue
             target_paths = find_files(os.path.join(root, "Dataset_Part1", "Label", f"{imgdir}.*"))
             target_path = target_paths[0]
-            dataset.append({"image_path": image_path, "target_path": target_path})
-            if idaug:
-                dataset.append({"image_path": target_path, "target_path": target_path})
+            dataset.append({"image_path": image_path, "target_path": target_path, **kwargs})
     
     for imgdir in os.listdir(os.path.join(root, "Dataset_Part2")):
         if imgdir == "Label": continue
@@ -70,9 +68,7 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
                 continue
             target_paths = find_files(os.path.join(root, "Dataset_Part2", "Label", f"{imgdir}.*"))
             target_path = target_paths[0]
-            dataset.append({"image_path": image_path, "target_path": target_path})
-            if idaug:
-                dataset.append({"image_path": target_path, "target_path": target_path})
+            dataset.append({"image_path": image_path, "target_path": target_path, **kwargs})
     
     random.seed(seed)
     random.shuffle(dataset)
@@ -91,7 +87,7 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
         return dataset
 
 
-def register_sice_dataset(name: str, root: str, split: str, idaug: bool):
+def register_sice_dataset(name: str, root: str, split: str, **kwargs):
     """
     Register the SICE dataset in DATASET_CATALOG.
 
@@ -99,7 +95,7 @@ def register_sice_dataset(name: str, root: str, split: str, idaug: bool):
         name (str): register name.
         root, split: Refer to `load_sice_dataset` for details.
     """
-    DATASET_CATALOG.register(name, lambda: load_sice_dataset(root, split, idaug))
+    DATASET_CATALOG.register(name, lambda: load_sice_dataset(root, split, **kwargs))
 
 
 if __name__ == '__main__':

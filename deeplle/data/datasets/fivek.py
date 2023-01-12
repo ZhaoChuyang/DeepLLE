@@ -3,7 +3,7 @@ from ...utils import check_path_is_image
 from ..catalog import DATASET_CATALOG
 
 
-def load_fivek_dataset(root: str, expert: str):
+def load_fivek_dataset(root: str, expert: str, **kwargs):
     """
     Load the fivek dataset into a list of dataset dicts.
 
@@ -11,6 +11,7 @@ def load_fivek_dataset(root: str, expert: str):
         root (str): path to the root directory, which should contains six subdirectories:
             "a", "b", "c", "d", "e" and "raw".
         expert (str): annotation expert, should be one of "a", "b", "c", "d", "e" and "all".
+        kwargs (dict): other information to be saved in the dataset dict.
     
     Returns:
         a list of dataset dicts. Dataset dict contains:
@@ -38,21 +39,23 @@ def load_fivek_dataset(root: str, expert: str):
         
         for tgt_dir in target_dir:
             tgt_path = os.path.join(tgt_dir, filename)
-            data_dicts.append({
+            record = {
                 "image_path": src_path,
-                "target_path": tgt_path
-            })
+                "target_path": tgt_path,
+                **kwargs
+            }
+            data_dicts.append(record)
     
     return data_dicts
 
 
-def register_fivek_dataset(name: str, root: str, expert: str):
+def register_fivek_dataset(name: str, root: str, expert: str, **kwargs):
     """
     Register the fivek dataset.
     """
     DATASET_CATALOG.register(
         name,
-        lambda: load_fivek_dataset(root, expert)
+        lambda: load_fivek_dataset(root, expert, **kwargs)
     )
 
 
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     """
     test the fivek dataset
     """
-    fivek_all = load_fivek_dataset("/home/chuyang/Workspace/datasets/fivek", "all")
-    fivek_a = load_fivek_dataset("/home/chuyang/Workspace/datasets/fivek", "a")
+    fivek_all = load_fivek_dataset("/home/chuyang/Workspace/datasets/fivek", "all", name="fivek_all")
+    fivek_a = load_fivek_dataset("/home/chuyang/Workspace/datasets/fivek", "a", name="fivek_a")
     from IPython import embed
     embed()
