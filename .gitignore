@@ -1,2 +1,4 @@
 __pycache__
 *.egg-info
+pretrained_weights/*
+!pretrained_weights/README.md

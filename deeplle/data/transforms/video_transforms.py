@@ -1,7 +1,7 @@
 # Created on Wed Jan 11 2023 by Chuyang Zhao
 from abc import ABC, abstractmethod
 import random
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 import torch
 import torchvision.transforms.functional as F
 import torchvision.transforms as T
@@ -127,6 +127,20 @@ class RandomCrop(Transform):
             target = pad_if_smaller(target, min(self.size))
             target = F.crop(target, *crop_params)
 
+        return input, target
+
+
+class RandomRightRotation(Transform):
+    def __init__(self, p: float):
+        self.p = p
+    
+    def __call__(self, input: List, target: Optional[torch.Tensor] = None):
+        if random.random() < self.p:
+            rot_code = random.randint(1, 3)
+            degree = rot_code * 90
+            for i in range(len(input)):
+                input[i] = F.rotate(input[i], degree)
+            target = F.rotate(target, degree) if target is not None else None
         return input, target
 
 

@@ -79,7 +79,7 @@
 
     "trainer": {
         "epochs": 100,
-        "ema_rate": 0.99,
+        "ema_rate": null,
         "iters_per_epoch": -1,
         "saved_period": 500,
         "save_last": 3,
@@ -116,21 +116,8 @@
 
     "test": {
         "resume_checkpoint": "model_best.pt",
-        "resume_ema_model": true,
-        "metrics": [
-            {
-                "name": "MAE",
-                "args": {}
-            },
-            {
-                "name": "SSIM",
-                "args": {}
-            },
-            {
-                "name": "PSNR",
-                "args": {}
-            }
-        ]
+        "resume_ema_model": false,
+        "metrics": ["MAE", "PSNR", "SSIM"]
     },
 
     "infer": {
@@ -148,6 +135,6 @@
         "resume_checkpoint": "model_best.pt",
         "resume_ema_model": false,
         "save_dir": "",
-        "save_pair": true
+        "save_pair": false
     }
 }

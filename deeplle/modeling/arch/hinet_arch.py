@@ -14,7 +14,7 @@ from typing import List, Dict, Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
-from .base import BaseISPModel
+from .base_image_model import BaseISPModel
 from .. import processing
 from ..build import MODEL_REGISTRY
 from ..losses import L1Loss, MS_SSIM, SSIM

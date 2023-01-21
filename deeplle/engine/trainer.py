@@ -200,7 +200,7 @@ class SimpleTrainer(BaseTrainer):
         return self.model(data)
 
     def run_step(self):
-        assert self.model.training, "[Trainer] model was changed to eval mode!"
+        assert self.model.training, "model was changed to eval mode unexpectedly!"
 
         data = next(self._train_loader_iter)
         """

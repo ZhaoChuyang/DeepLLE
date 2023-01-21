@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
 from ..build import MODEL_REGISTRY, build_model
-from .base import BaseISPModel
+from .base_image_model import BaseISPModel
 from ..backbone import UNet
 from .. import processing
 from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss, CharbonnierLoss

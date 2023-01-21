@@ -19,6 +19,7 @@ from .sice import register_sice_dataset
 from .mbllen import register_mbllen_dataset
 from .ve_lol import register_ve_lol_dataset
 from .fivek import register_fivek_dataset
+from .sdsd import register_sdsd_dataset
 
 
 def register_all_lol(root):
@@ -76,9 +77,23 @@ def register_all_fivek(root):
         register_fivek_dataset(name, os.path.join(root, dirname), expert, dataset_name=name)
 
 
+def register_all_sdsd(root):
+    ALL = [
+        ("sdsd_indoor_np", "SDSD", "numpy", "indoor"),
+        ("sdsd_indoor", "SDSD", "image", "indoor"),
+        ("sdsd_outdoor_np", "SDSD", "numpy", "outdoor"),
+        ("sdsd_outdoor", "SDSD", "image", "outdoor"),
+        ("sdsd_all_np", "SDSD", "numpy", "all"),
+        ("sdsd_all", "SDSD", "image", "all"),
+    ]
+    for name, dirname, data_type, category in ALL:
+        register_sdsd_dataset(name, os.path.join(root, dirname), data_type, category, dataset_name=name)
+
+
 _root = os.path.expanduser(os.getenv("ISP_DATASETS", "datasets"))
 register_all_lol(_root)
 register_all_sice(_root)
 register_all_mbllen(_root)
 register_all_ve_lol(_root)
 register_all_fivek(_root)
+register_all_sdsd(_root)

@@ -78,7 +78,7 @@ if __name__ == '__main__':
     Test the LOL dataset loader.
     """
     from IPython import embed
-    root = "/data/chuyang/datasets/LOL"
+    root = "/home/chuyang/Workspace/datasets/LOL"
     train = load_lol_dataset(root, "train")
     val = load_lol_dataset(root, "val")
     all = load_lol_dataset(root, "all")

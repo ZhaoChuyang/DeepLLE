@@ -4,11 +4,12 @@ import logging
 from typing import Dict, List
 from torch.utils import data
 from PIL import Image
-from .data_utils import generate_frame_indices
-from .transforms import transforms as T
-from .transforms import video_transforms as VT
 from typing import Optional
 import random
+from deeplle.data.data_utils import generate_frame_indices
+from deeplle.utils.image_ops import read_image
+from deeplle.data.transforms import transforms as T
+from deeplle.data.transforms import video_transforms as VT
 
 
 logger = logging.getLogger(__name__)
@@ -129,11 +130,18 @@ class CommISPDataset(data.Dataset):
         return record
 
 
-class CommVideoISPDataset(data.Dataset):
+class CommVideoDataset(data.Dataset):
     """
-    Construct commom video ISP dataset from a list of dataset dicts.
+    Construct commom video dataset from a list of dataset dicts. Each dict in dataset dicts
+    should contain 
     """
-    def __init__(self, dataset_dicts: List[Dict], num_frames: int, padding_mode: str, is_train: bool, transforms: VT.Transform):
+    def __init__(
+        self, dataset_dicts: List[Dict],
+        num_frames: int,
+        padding_mode: str,
+        transforms: VT.Transform,
+        is_train: bool
+    ):
         """
         Args:
             dataset_dicts (list): a list of dataset dicts. dict should contains 'image_path' and 'target_path'.
@@ -149,12 +157,15 @@ class CommVideoISPDataset(data.Dataset):
             is_train (bool): set to True if you want to use this dataset in training mode, otherwise for inference mode.
                 In the training mode input and target image pairs is returned, otherwise only input image is returned.
             transforms (callable): do transforms on image pairs or single image.
+            target (str): target type, should be one of 'center_image' | 'video_sequence'. 'center_image' means the target
+                is a single image corresponding to the center image in the inputs. 'video_sequence' means the target is a
+                video sequence corresponding to the input video sequence.
         
         TODO: the images can be cached for fast loading.
         """
         self.dataset_dicts = dataset_dicts
         self.gt_paths = [record["target_path"] for record in dataset_dicts] # paths of the ground truth images
-        self.lq_paths = [record["image_path"] for record in dataset_dicts] # paths of the low quality images
+        self.lq_paths = [record["input_path"] for record in dataset_dicts] # paths of the low quality images
         self.total_frames = len(self.lq_paths)
         assert num_frames % 2 == 1, "num_frames should be odd"
         self.num_frames = num_frames
@@ -170,10 +181,10 @@ class CommVideoISPDataset(data.Dataset):
         # if self.is_train:
         lq_indices = generate_frame_indices(idx, self.total_frames, self.num_frames, padding=self.padding_mode)
         lq_img_paths = [self.lq_paths[i] for i in lq_indices]
-        lq_images = [Image.open(path) for path in lq_img_paths]
+        lq_images = [read_image(path) for path in lq_img_paths]
         if self.is_train:
             gt_img_path = self.gt_paths[idx]
-            gt_image = Image.open(gt_img_path)
+            gt_image = read_image(gt_img_path)
         else:
             gt_image = None
         # do transforms on the low quality images (list of n image frames) and ground truth image (single image).
@@ -184,9 +195,12 @@ class CommVideoISPDataset(data.Dataset):
         record.update({
             "input": input, # tensor: (n, c, h, w)
             "target": target, # tensor: (c, h, w) if target is available else None
+            "num_frames": self.num_frames,
         })
         return record
 
-        
 
-        
+class CommVideoMultiGTDataset(data.Dataset):
+    """
+
+    """

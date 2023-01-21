@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
 from deeplle.modeling.build import MODEL_REGISTRY
-from deeplle.modeling.arch.base import BaseISPModel
+from deeplle.modeling.arch.base_image_model import BaseISPModel
 from deeplle.modeling.backbone import MBLLEN
 from deeplle.modeling import processing
 from deeplle.modeling.losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss

@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 import torch.utils.data as torchdata
 import itertools
 import logging
-from deeplle.data.common import ToIterableDataset, CommISPDataset, CommVideoISPDataset
+from deeplle.data.common import ToIterableDataset, CommISPDataset, CommVideoDataset
 from deeplle.data.samplers import TrainingSampler, BalancedSampler, InferenceSampler
 from deeplle.data.catalog import DATASET_CATALOG
 from deeplle.utils.config import configurable, ConfigDict
@@ -131,6 +131,7 @@ def build_isp_train_loader(
     dataset=None,
     type="image",
     idaug_datasets=[],
+    shuffle=True,
     batch_size=1,
     transforms=None,
     sampler=None,
@@ -147,6 +148,8 @@ def build_isp_train_loader(
         names (str or list[str]): dataset name or a list of dataset names, you must provide at least one of dataset or names.
         dataset (torchdata.Dataset or torchdata.IterableDataset): instantiated dataset, you must provide at least one of dataset or names.
         type (str): dataset type, must be one of 'image' | 'video'.
+        idaug_datasets (list): the names of the datasets you want to do identity augmentation.
+        shuffle (bool): whether to shuffle the dataset. For image dataset, typically it is True, but for video dataset it is False.
         batch_size (int): total batch size, the batch size each GPU got is batch_size // num_gpus.
         transforms (torchvision.Transforms): transforms applied to dataset.
         sampler (str): specify this argument if you use map-style dataset, by default use the TrainingSampler. You should not provide this if you use iterable-style dataset.
@@ -168,18 +171,22 @@ def build_isp_train_loader(
         if type == "image":
             dataset = CommISPDataset(dataset_dicts, True, transforms, idaug_datasets)
         elif type == "video":
-            dataset = CommVideoISPDataset(dataset_dicts, num_frames, padding_mode, True, transforms)
+            dataset = CommVideoDataset(dataset_dicts, num_frames, padding_mode, True, transforms)
         else:
             logger.error(f"Dataset type must be 'image' or 'video', got {type}.")
             raise RuntimeError
     
+    if type == 'video' and shuffle is True:
+        logger.warning("Video dataset should not be shuffled, set shuffle to False.")
+        shuffle = False
+
     if isinstance(dataset, torchdata.IterableDataset):
         assert sampler is None, "sampler must be None if dataset is IterableDataset"
     else:
         if sampler == "TrainingSampler":
-            sampler = TrainingSampler(sum(dataset_sizes))
+            sampler = TrainingSampler(sum(dataset_sizes), shuffle=shuffle)
         elif sampler == "BalancedSampler":
-            sampler = BalancedSampler(dataset_sizes)
+            sampler = BalancedSampler(dataset_sizes, shuffle=shuffle)
         else:
             raise NotImplementedError(f"sampler: {sampler} is not implemented.")
     

@@ -1,54 +1,44 @@
-# Created on Tue Oct 11 2022 by Chuyang Zhao
 from typing import List, Dict, Tuple
 import torch
 from torch import nn, Tensor
-from ..build import MODEL_REGISTRY
-from .base_image_model import BaseISPModel
-from ..backbone import UNet
-from .. import processing
-from ..losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss, CharbonnierLoss, TVLoss
+from deeplle.modeling.arch.base_image_model import BaseISPModel
+from deeplle.modeling.build import MODEL_REGISTRY
+from deeplle.modeling.backbone.iat import IAT
+from deeplle.modeling.losses import L1Loss, MS_SSIM, SSIM, VGGPerceptualLoss, CharbonnierLoss, TVLoss
+from deeplle.modeling import processing
+
+
+__all__ = ['IlluminationAdaptiveTransformer']
 
 
 @MODEL_REGISTRY.register()
-class UNetBaseline(BaseISPModel):
-    def __init__(self, bilinear: bool = False, depth: int = 2, base_dim: int = 32, residual: bool = False, testing: bool = False):
+class IlluminationAdaptiveTransformer(BaseISPModel):
+    def __init__(self, in_dim: int = 3, with_global: bool = True, testing: bool = False):
         super().__init__(testing=testing)
-        self.backbone = UNet(n_channels=3, n_classes=3, bilinear=bilinear, base_dim=base_dim, depth=depth, residual=residual)
-
-        self.activation = nn.Tanh()
+        self.backbone = IAT(in_dim = in_dim, with_global = with_global)
         
         # self.l1_loss = L1Loss()
-        self.l1_loss = CharbonnierLoss()
+        self.l1_loss = L1Loss()
         self.ms_ssim_loss = MS_SSIM(data_range = 1.0)
         self.ssim_loss = SSIM(data_range = 1.0)
-        self.perceptual_loss = VGGPerceptualLoss(False)
+        # self.perceptual_loss = VGGPerceptualLoss(False)
         # self.tv_loss = TVLoss()
 
 
     def forward(self, batched_inputs: List[Dict[str, Tensor]]):
         if self.testing:
             images, image_sizes = self.preprocess_test_images(batched_inputs)
-            outputs = self.backbone(images)
+            _, _, outputs = self.backbone(images)
             # outputs = self.activation(outputs)
             outputs = self.postprocess_images(outputs, image_sizes)
             return outputs
         
         images, targets, image_sizes = self.preprocess_images(batched_inputs)
-
         # from IPython import embed
-        # def save_image(save_path: str, image: torch.Tensor):
-        #     """
-        #     """
-        #     import numpy as np
-        #     import cv2 
-        #     image = image.detach().cpu().numpy()
-        #     image = np.transpose(image, [1, 2, 0])
-        #     image = np.clip(image * 255, 0, 255)
-        #     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        #     cv2.imwrite(save_path, image)
+        # from deeplle.utils.image_ops import save_image
         # embed()
-
-        outputs = self.backbone(images)
+        
+        _, _, outputs = self.backbone(images)
         loss_dict = self.losses(outputs, targets)
         output_dict = self.metrics(outputs, targets)
 
@@ -64,7 +54,7 @@ class UNetBaseline(BaseISPModel):
         loss_dict = {}
 
         loss_dict["l1_loss"] = self.l1_loss(inputs, targets)
-        loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
+        # loss_dict["perceptual_loss"] = self.perceptual_loss(inputs, targets) * 0.1
         loss_dict["ms_ssim_loss"] = (1 - self.ms_ssim_loss(inputs, targets))
         # loss_dict["tv_loss"] = self.tv_loss(inputs, targets)
         # loss_dict["ssim_loss"] = (1 - self.ssim_loss(inputs, targets))
@@ -78,16 +68,11 @@ class UNetBaseline(BaseISPModel):
         images, image_sizes = processing.pad_collate_images(images, self.size_divisibility)
         targets, _ = processing.pad_collate_images(targets, self.size_divisibility)
 
-        # images = processing.normalize_to_neg_one_to_one(images)
-        # targets = processing.normalize_to_neg_one_to_one(targets)
-
         return images, targets, image_sizes
 
     def preprocess_test_images(self, batched_inputs: List[Dict[str, Tensor]]):
         images = [self._move_to_current_device(x['image']) for x in batched_inputs]
         images, image_sizes = processing.pad_collate_images(images, self.size_divisibility)
-
-        # images = processing.normalize_to_neg_one_to_one(images)
 
         return images, image_sizes
     
@@ -104,7 +89,5 @@ class UNetBaseline(BaseISPModel):
         Returns:
             output_images (List[Tensor]): List of images that is restorted to its original sizes.
         """
-        # images = processing.unnormalize_to_zero_to_one(images)
         images = processing.remove_padding(images, image_sizes)
         return images
-

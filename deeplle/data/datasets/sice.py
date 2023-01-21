@@ -1,9 +1,41 @@
 # Created on Fri Oct 14 2022 by Chuyang Zhao
 import os
 import random
-from ...utils import check_path_is_image, find_files
-import random
-from ..catalog import DATASET_CATALOG
+import logging
+from PIL import Image
+from deeplle.utils import check_path_is_image, find_files, check_path_exists
+from deeplle.utils.image_ops import calculate_brightness
+from deeplle.utils import comm
+from deeplle.data.catalog import DATASET_CATALOG
+
+
+logger = logging.getLogger(__name__)
+
+
+def generate_low_light_labels(root: str):
+    assert check_path_exists(os.path.join(root, "Dataset_Part1")) and check_path_exists(os.path.join(root, "Dataset_Part2")),\
+        "The SICE root directory should contains two directory 'Dataset_Part1' and 'Dataset_Part2'."
+
+    if comm.is_main_process():
+        brightness_dict = dict()
+        for dirpath, _, files in os.walk(root):
+            for filename in files:
+                path = os.path.join(dirpath, filename)
+                if not filename.lower().endswith(("png", "jpg", "jpeg")):
+                    continue
+                img = Image.open(path)
+                brightness = calculate_brightness(img)
+                img_path = os.path.join(dirpath[len(root):], filename).strip('/')
+                brightness_dict[img_path] = brightness
+
+        fb = open(os.path.join(root, "brightness_labels.txt"), "w")
+        for k, v in brightness_dict.items():
+            fb.write(f"{k} {v}\n")
+        fb.close()
+    
+    comm.synchronize()
+
+    logger.info(f"Brightness annotations for SICE dataset successfully generated in: {os.path.join(root, 'brightness_labels.txt')}")
 
 
 def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int = 0, **kwargs):
@@ -35,6 +67,10 @@ def load_sice_dataset(root: str, split: str, low_light: bool = True, seed: int =
     dataset = []
 
     brightness_labels = {}
+    if not check_path_exists(os.path.join(root, "brightness_labels.txt")):
+        logger.info("Brightness annotations for SICE dataset not found. It may take a few minutes to generate it...")
+        generate_low_light_labels(root)
+    
     with open(os.path.join(root, "brightness_labels.txt")) as fb:
         for line in fb.readlines():
             filename, brightness = line.split(" ")

@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch import nn
 
-from ..processing import pad_collate_images, remove_padding
+from deeplle.modeling.processing import pad_collate_images, remove_padding
 
 
 class BaseISPModel(nn.Module, ABC):
